@@ -1,0 +1,6 @@
+node_modules
+dist
+dist-webview
+.vscode-test
+*.vsix
+.DS_Store
