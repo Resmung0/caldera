@@ -28,6 +28,12 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    public setLoading(isLoading: boolean) {
+        if (this._view) {
+            this._view.webview.postMessage({ type: 'setLoading', isLoading });
+        }
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview) {
         // Em produção, isso apontaria para os arquivos buildados pelo Vite
         // Para o scaffold, vamos usar um placeholder que será substituído pelo build real

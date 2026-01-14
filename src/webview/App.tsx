@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { PipelineCanvas } from './PipelineCanvas';
+import { LoadingScreen } from './LoadingScreen';
 import { PipelineData, ExtensionMessage } from '../shared/types';
 
 const App: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const [pipelineData, setPipelineData] = useState<PipelineData>({
     framework: 'Waiting for data...',
     nodes: [],
@@ -16,6 +18,9 @@ const App: React.FC = () => {
         case 'updatePipeline':
           setPipelineData(message.data);
           break;
+        case 'setLoading':
+          setIsLoading(message.isLoading);
+          break;
         case 'error':
           console.error(message.message);
           break;
@@ -25,6 +30,10 @@ const App: React.FC = () => {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   return <PipelineCanvas data={pipelineData} />;
 };
