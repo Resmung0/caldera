@@ -36,6 +36,7 @@
     }
   },
   "scripts": {
+    "clean": "rm -rf dist && rm -rf dist-webview && rm -rf node_modules",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",

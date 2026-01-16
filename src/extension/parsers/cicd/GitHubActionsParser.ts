@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
-import { IParser } from './IParser';
-import { PipelineData, PipelineNode, PipelineEdge } from '../../shared/types';
+import { IParser } from '../IParser';
+import { PipelineData, PipelineNode, PipelineEdge } from '../../../shared/types';
 
 export class GitHubActionsParser implements IParser {
     name = 'GitHub Action';

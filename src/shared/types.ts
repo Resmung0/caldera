@@ -23,3 +23,10 @@ export type ExtensionMessage =
     | { type: 'updatePipeline'; data: PipelineData }
     | { type: 'setLoading'; isLoading: boolean }
     | { type: 'error'; message: string };
+
+export enum PipelineType {
+  CICD = 'cicd',
+  DataProcessing = 'data-processing',
+  AIAgent = 'ai-agent',
+  RPA = 'rpa',
+}

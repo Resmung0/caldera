@@ -14,11 +14,10 @@ import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { PipelineData } from '../shared/types';
 import {
-  Settings,
   Database,
-  BrainCircuit,
+  Sparkle,
+  Workflow,
   Bot,
-  Play,
   CheckCircle,
   XCircle,
   Clock,
@@ -35,9 +34,9 @@ const TopPanel = () => {
   const [activeContext, setActiveContext] = useState<string>('cicd');
 
   const contexts = [
-    { id: 'cicd', icon: Settings, label: 'CI/CD' },
-    { id: 'data', icon: Database, label: 'Data' },
-    { id: 'ai', icon: BrainCircuit, label: 'AI Orchestration' },
+    { id: 'cicd', icon: Workflow, label: 'CI/CD' },
+    { id: 'data', icon: Database, label: 'Data Processing' },
+    { id: 'ai', icon: Sparkle, label: 'AI Orchestration' },
     { id: 'rpa', icon: Bot, label: 'RPA' },
   ];
 

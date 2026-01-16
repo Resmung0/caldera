@@ -1,14 +1,23 @@
 import * as vscode from 'vscode';
 import { PipelineWebviewProvider } from './WebviewProvider';
-import { GitHubActionsParser } from './parsers/GitHubActionsParser';
-
+import { IPipeline } from './pipelines/IPipeline';
+import { CICDPipeline } from './pipelines/CICDPipeline';
+import { DataProcessingPipeline } from './pipelines/DataProcessingPipeline';
+import { AIAgentPipeline } from './pipelines/AIAgentPipeline';
+import { RPAPipeline } from './pipelines/RPAPipeline';
+import { PipelineType } from '../shared/types';
 import { IParser } from './parsers/IParser';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('[Pipeline Visualizer] 🚀 Extension is activating...');
 
     const provider = new PipelineWebviewProvider(context.extensionUri);
-    const parsers: IParser[] = [new GitHubActionsParser()];
+    const pipelines: IPipeline[] = [
+        new CICDPipeline(),
+        new DataProcessingPipeline(),
+        new AIAgentPipeline(),
+        new RPAPipeline(),
+    ];
 
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(PipelineWebviewProvider.viewType, provider)
@@ -21,11 +30,13 @@ export function activate(context: vscode.ExtensionContext) {
             if (activeEditor) {
                 const fileName = activeEditor.document.fileName;
                 const content = activeEditor.document.getText();
-
-                const parser = parsers.find(p => p.canParse(fileName, content));
-                if (parser) {
-                    const data = parser.parse(content);
-                    provider.updatePipeline(data);
+                const pipeline = pipelines.find(p => p.type === provider.pipelineType);
+                if (pipeline) {
+                    const parser = pipeline.parsers.find(p => p.canParse(fileName, content));
+                    if (parser) {
+                        const data = parser.parse(content);
+                        provider.updatePipeline(data);
+                    }
                 }
             }
         } catch (error) {
@@ -33,18 +44,42 @@ export function activate(context: vscode.ExtensionContext) {
         }
     };
 
-    // Monitorar mudanças no arquivo ativo
     context.subscriptions.push(
         vscode.workspace.onDidSaveTextDocument(() => watchFiles()),
         vscode.window.onDidChangeActiveTextEditor(() => watchFiles())
     );
 
-    // Inicializar Auto-Discovery (runs in background, errors are caught internally)
+    const discover = () => {
+        const pipeline = pipelines.find(p => p.type === provider.pipelineType);
+        if (pipeline) {
+            discoverPipelines(provider, pipeline.parsers).catch(error => {
+                console.error('[Pipeline Visualizer] ❌ Error during pipeline discovery:', error);
+                provider.setLoading(false);
+            });
+        }
+    };
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('cicd.select', () => {
+            provider.pipelineType = PipelineType.CICD;
+            discover();
+        }),
+        vscode.commands.registerCommand('data-processing.select', () => {
+            provider.pipelineType = PipelineType.DataProcessing;
+            discover();
+        }),
+        vscode.commands.registerCommand('ai-agent.select', () => {
+            provider.pipelineType = PipelineType.AIAgent;
+            discover();
+        }),
+        vscode.commands.registerCommand('rpa.select', () => {
+            provider.pipelineType = PipelineType.RPA;
+            discover();
+        })
+    );
+
     console.log('[Pipeline Visualizer] 🔍 Starting pipeline discovery...');
-    discoverPipelines(provider, parsers).catch(error => {
-        console.error('[Pipeline Visualizer] ❌ Error during pipeline discovery:', error);
-        provider.setLoading(false);
-    });
+    discover();
 
     watchFiles();
 
@@ -56,42 +91,38 @@ async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IPa
         github: '**/.github/workflows/*.{yml,yaml}',
         gitlab: '**/.gitlab-ci.yml',
         airflow: '**/dags/*.py',
-        kedro: '**/pipeline.py'
+        kedro: '**/pipeline.py',
+        langchain: '**/*.py',
+        uipath: '**/*.xaml',
     };
 
     try {
         provider.setLoading(true);
-        console.log('[Pipeline Visualizer] 🔍 Searching for pipeline files...');
+        console.log('[Pipeline Visualizer] 🔍 Searching for pipeline files for category:', provider.pipelineType);
 
         for (const [key, pattern] of Object.entries(pipelinePatterns)) {
             try {
-                console.log(`[Pipeline Visualizer] 📂 Searching pattern: ${pattern}`);
+                // Find up to 1 file for each pattern. We only visualize one at a time.
                 const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**', 1);
-                console.log(`[Pipeline Visualizer] 📂 Found ${files.length} files for ${key}`);
-
                 if (files.length > 0) {
-                    console.log(`[Pipeline Visualizer] 📄 Opening file: ${files[0].fsPath}`);
                     const document = await vscode.workspace.openTextDocument(files[0]);
                     const content = document.getText();
+                    // Find a parser that can handle this file
                     const parser = parsers.find(p => p.canParse(files[0].fsPath, content));
 
                     if (parser) {
-                        console.log(`[Pipeline Visualizer] ✅ Using parser: ${parser.name}`);
+                        console.log(`[Pipeline Visualizer] ✅ Using parser: ${parser.name} for ${files[0].fsPath}`);
                         const data = parser.parse(content);
-                        console.log(`[Pipeline Visualizer] 📊 Parsed data:`, JSON.stringify(data, null, 2));
                         provider.updatePipeline(data);
-                        provider.setLoading(false);
-                        console.log('[Pipeline Visualizer] ✅ Pipeline data sent to webview!');
+                        // Stop after finding the first valid pipeline in the category
                         return;
-                    } else {
-                        console.log(`[Pipeline Visualizer] ⚠️ No parser found for file: ${files[0].fsPath}`);
                     }
                 }
             } catch (innerError) {
                 console.error(`[Pipeline Visualizer] ❌ Error discovering ${key} pipelines:`, innerError);
             }
         }
-        console.log('[Pipeline Visualizer] ⚠️ No pipeline files found in workspace');
+        console.log('[Pipeline Visualizer] ⚠️ No pipeline files found in workspace for the selected category');
     } finally {
         provider.setLoading(false);
     }
