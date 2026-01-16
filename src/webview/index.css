@@ -9,3 +9,48 @@ body {
   width: 100vw;
   height: 100vh;
 }
+
+/* ReactFlow Controls styling for dark theme */
+.react-flow__controls {
+  background: #1e2031 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px !important;
+  padding: 1px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.react-flow__controls-button {
+  background: #2a2d3e !important;
+  border: none !important;
+  border-radius: 3px !important;
+  margin: 1px 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.react-flow__controls-button:first-child {
+  border-top-left-radius: 3px !important;
+  border-top-right-radius: 3px !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom-left-radius: 3px !important;
+  border-bottom-right-radius: 3px !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #3a3d4e !important;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button svg {
+  fill: #ffffff !important;
+  width: 10px !important;
+  height: 10px !important;
+}

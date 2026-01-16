@@ -280,8 +280,8 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: '#474c60',
-        width: 20,
-        height: 20,
+        width: 12,
+        height: 12,
       },
     }));
 
@@ -352,10 +352,11 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
           }));
         }}
         connectionLineType={ConnectionLineType.SmoothStep}
+        colorMode="dark"
         fitView
       >
         <Background color="#2a2d3e" gap={20} size={1} />
-        <Controls style={{ background: '#1e2031', border: 'none', fill: 'white' }} />
+        <Controls />
       </ReactFlow>
 
       <style>{`
