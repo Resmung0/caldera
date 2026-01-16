@@ -1,12 +1,12 @@
 import { IParser } from "../IParser";
 import { PipelineData } from "../../../shared/types";
 
-export class SnykParser implements IParser {
-  name = "Snyk";
+export class LangChainParser implements IParser {
+  name = "LangChain";
 
   canParse(fileName: string, content: string): boolean {
     // Basic check, can be improved
-    return content.includes("snyk");
+    return content.includes("from langchain");
   }
 
   parse(content: string): PipelineData {

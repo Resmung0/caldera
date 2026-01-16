@@ -41,18 +41,18 @@
         "category": "Pipeline"
       },
       {
-        "command": "orchestration.select",
-        "title": "Orchestration",
+        "command": "data-processing.select",
+        "title": "Data Processing",
         "category": "Pipeline"
       },
       {
-        "command": "observability.select",
-        "title": "Observability",
+        "command": "ai-agent.select",
+        "title": "AI Agent",
         "category": "Pipeline"
       },
       {
-        "command": "security.select",
-        "title": "Security",
+        "command": "rpa.select",
+        "title": "RPA",
         "category": "Pipeline"
       }
     ],
@@ -64,17 +64,17 @@
           "group": "navigation"
         },
         {
-          "command": "orchestration.select",
+          "command": "data-processing.select",
           "when": "view == pipeline.view",
           "group": "navigation"
         },
         {
-          "command": "observability.select",
+          "command": "ai-agent.select",
           "when": "view == pipeline.view",
           "group": "navigation"
         },
         {
-          "command": "security.select",
+          "command": "rpa.select",
           "when": "view == pipeline.view",
           "group": "navigation"
         }

@@ -26,7 +26,7 @@ export type ExtensionMessage =
 
 export enum PipelineType {
   CICD = 'cicd',
-  Orchestration = 'orchestration',
-  Observability = 'observability',
-  Security = 'security',
+  DataProcessing = 'data-processing',
+  AIAgent = 'ai-agent',
+  RPA = 'rpa',
 }

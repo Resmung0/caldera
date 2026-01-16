@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import { PipelineWebviewProvider } from './WebviewProvider';
 import { IPipeline } from './pipelines/IPipeline';
 import { CICDPipeline } from './pipelines/CICDPipeline';
-import { OrchestrationPipeline } from './pipelines/OrchestrationPipeline';
-import { ObservabilityPipeline } from './pipelines/ObservabilityPipeline';
-import { SecurityPipeline } from './pipelines/SecurityPipeline';
+import { DataProcessingPipeline } from './pipelines/DataProcessingPipeline';
+import { AIAgentPipeline } from './pipelines/AIAgentPipeline';
+import { RPAPipeline } from './pipelines/RPAPipeline';
 import { PipelineType } from '../shared/types';
 import { IParser } from './parsers/IParser';
 
@@ -14,9 +14,9 @@ export function activate(context: vscode.ExtensionContext) {
     const provider = new PipelineWebviewProvider(context.extensionUri);
     const pipelines: IPipeline[] = [
         new CICDPipeline(),
-        new OrchestrationPipeline(),
-        new ObservabilityPipeline(),
-        new SecurityPipeline(),
+        new DataProcessingPipeline(),
+        new AIAgentPipeline(),
+        new RPAPipeline(),
     ];
 
     context.subscriptions.push(
@@ -64,16 +64,16 @@ export function activate(context: vscode.ExtensionContext) {
             provider.pipelineType = PipelineType.CICD;
             discover();
         }),
-        vscode.commands.registerCommand('orchestration.select', () => {
-            provider.pipelineType = PipelineType.Orchestration;
+        vscode.commands.registerCommand('data-processing.select', () => {
+            provider.pipelineType = PipelineType.DataProcessing;
             discover();
         }),
-        vscode.commands.registerCommand('observability.select', () => {
-            provider.pipelineType = PipelineType.Observability;
+        vscode.commands.registerCommand('ai-agent.select', () => {
+            provider.pipelineType = PipelineType.AIAgent;
             discover();
         }),
-        vscode.commands.registerCommand('security.select', () => {
-            provider.pipelineType = PipelineType.Security;
+        vscode.commands.registerCommand('rpa.select', () => {
+            provider.pipelineType = PipelineType.RPA;
             discover();
         })
     );
@@ -91,7 +91,9 @@ async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IPa
         github: '**/.github/workflows/*.{yml,yaml}',
         gitlab: '**/.gitlab-ci.yml',
         airflow: '**/dags/*.py',
-        kedro: '**/pipeline.py'
+        kedro: '**/pipeline.py',
+        langchain: '**/*.py',
+        uipath: '**/*.xaml',
     };
 
     try {
