@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { PipelineData, PipelineType } from '../shared/types';
+import { LOG_PREFIX } from './constants';
 
 export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'pipeline.view';
@@ -17,7 +18,7 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
         context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
     ) {
-        console.log('[Pipeline Visualizer] 🎨 Webview panel opened');
+        console.log(`${LOG_PREFIX} 🎨 Webview panel opened`);
         this._view = webviewView;
 
         webviewView.webview.options = {
@@ -29,19 +30,19 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
 
         // Listen for messages from the webview (Handshake)
         webviewView.webview.onDidReceiveMessage(message => {
-            console.log('[Pipeline Visualizer] 📨 Received message from webview:', message);
+            console.log(`${LOG_PREFIX} 📨 Received message from webview:`, message);
 
             if (message.type === 'webviewReady') {
-                console.log('[Pipeline Visualizer] 🤝 Handshake complete! Sending cached data...');
+                console.log(`${LOG_PREFIX} 🤝 Handshake complete! Sending cached data...`);
 
                 if (this._isLoading) {
                     this.setLoading(true);
                 }
                 if (this._cachedPipelineData) {
-                    console.log('[Pipeline Visualizer] 📤 Sending cached pipeline data now.');
+                    console.log(`${LOG_PREFIX} 📤 Sending cached pipeline data now.`);
                     this._view?.webview.postMessage({ type: 'updatePipeline', data: this._cachedPipelineData });
                 } else {
-                    console.log('[Pipeline Visualizer] ⚠️ No cached data to send yet.');
+                    console.log(`${LOG_PREFIX} ⚠️ No cached data to send yet.`);
                 }
             }
         });
@@ -52,10 +53,10 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
         this._cachedPipelineData = data;
 
         if (this._view) {
-            console.log('[Pipeline Visualizer] 📤 Sending pipeline data to webview');
+            console.log(`${LOG_PREFIX} 📤 Sending pipeline data to webview`);
             this._view.webview.postMessage({ type: 'updatePipeline', data });
         } else {
-            console.log('[Pipeline Visualizer] 💾 Webview not open, data cached for later');
+            console.log(`${LOG_PREFIX} 💾 Webview not open, data cached for later`);
         }
     }
 
@@ -71,7 +72,7 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist-webview', 'assets', 'index.js'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist-webview', 'assets', 'index.css'));
 
-        console.log('[Pipeline Visualizer] 📦 Loading webview assets:', { scriptUri: scriptUri.toString(), styleUri: styleUri.toString() });
+        console.log(`${LOG_PREFIX} 📦 Loading webview assets:`, { scriptUri: scriptUri.toString(), styleUri: styleUri.toString() });
 
         return `<!DOCTYPE html>
             <html lang="en">

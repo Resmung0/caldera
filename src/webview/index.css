@@ -1,3 +1,12 @@
+:root {
+  --color-bg-primary: #1e2031;
+  --color-bg-secondary: #2a2d3e;
+  --color-bg-hover: #3a3d4e;
+  --color-text-primary: #ffffff;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-shadow: rgba(0, 0, 0, 0.3);
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -12,25 +21,26 @@ body {
 
 /* ReactFlow Controls styling for dark theme */
 .react-flow__controls {
-  background: #1e2031 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: var(--color-bg-primary) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 4px !important;
   padding: 1px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 4px 12px var(--color-shadow) !important;
 }
 
 .react-flow__controls-button {
-  background: #2a2d3e !important;
+  background: var(--color-bg-secondary) !important;
   border: none !important;
   border-radius: 3px !important;
   margin: 1px 0 !important;
   width: 18px !important;
   height: 18px !important;
-  color: #ffffff !important;
-  fill: #ffffff !important;
+  color: var(--color-text-primary) !important;
+  fill: var(--color-text-primary) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .react-flow__controls-button:first-child {
@@ -44,13 +54,12 @@ body {
 }
 
 .react-flow__controls-button:hover {
-  background: #3a3d4e !important;
+  background: var(--color-bg-hover) !important;
   transform: scale(1.05);
-  transition: all 0.2s ease;
 }
 
 .react-flow__controls-button svg {
-  fill: #ffffff !important;
+  fill: var(--color-text-primary) !important;
   width: 10px !important;
   height: 10px !important;
 }
