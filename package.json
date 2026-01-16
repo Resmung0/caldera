@@ -1,6 +1,6 @@
 {
-  "name": "pipeline-visualizer",
-  "displayName": "Pipeline Visualizer",
+  "name": "caldera",
+  "displayName": "Caldera",
   "description": "Visualização de pipelines em tempo real no VS Code",
   "version": "0.0.1",
   "engines": {
@@ -20,7 +20,7 @@
       "activitybar": [
         {
           "id": "pipeline-viewer",
-          "title": "Pipeline Visualizer",
+          "title": "Caldera",
           "icon": "$(graph)"
         }
       ]
