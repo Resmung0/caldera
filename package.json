@@ -10,8 +10,11 @@
     "Visualization",
     "Other"
   ],
-  "activationEvents": [],
-  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:pipeline.view",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
