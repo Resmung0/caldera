@@ -33,55 +33,10 @@
           "name": "Live Preview"
         }
       ]
-    },
-    "commands": [
-      {
-        "command": "cicd.select",
-        "title": "CI/CD",
-        "category": "Pipeline"
-      },
-      {
-        "command": "data-processing.select",
-        "title": "Data Processing",
-        "category": "Pipeline"
-      },
-      {
-        "command": "ai-agent.select",
-        "title": "AI Agent",
-        "category": "Pipeline"
-      },
-      {
-        "command": "rpa.select",
-        "title": "RPA",
-        "category": "Pipeline"
-      }
-    ],
-    "menus": {
-      "view/title": [
-        {
-          "command": "cicd.select",
-          "when": "view == pipeline.view",
-          "group": "navigation"
-        },
-        {
-          "command": "data-processing.select",
-          "when": "view == pipeline.view",
-          "group": "navigation"
-        },
-        {
-          "command": "ai-agent.select",
-          "when": "view == pipeline.view",
-          "group": "navigation"
-        },
-        {
-          "command": "rpa.select",
-          "when": "view == pipeline.view",
-          "group": "navigation"
-        }
-      ]
     }
   },
   "scripts": {
+    "clean": "rm -rf dist && rm -rf dist-webview && rm -rf node_modules",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
