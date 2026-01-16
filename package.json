@@ -44,6 +44,16 @@
         "command": "orchestration.select",
         "title": "Orchestration",
         "category": "Pipeline"
+      },
+      {
+        "command": "observability.select",
+        "title": "Observability",
+        "category": "Pipeline"
+      },
+      {
+        "command": "security.select",
+        "title": "Security",
+        "category": "Pipeline"
       }
     ],
     "menus": {
@@ -55,6 +65,16 @@
         },
         {
           "command": "orchestration.select",
+          "when": "view == pipeline.view",
+          "group": "navigation"
+        },
+        {
+          "command": "observability.select",
+          "when": "view == pipeline.view",
+          "group": "navigation"
+        },
+        {
+          "command": "security.select",
           "when": "view == pipeline.view",
           "group": "navigation"
         }

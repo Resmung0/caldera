@@ -3,6 +3,8 @@ import { PipelineWebviewProvider } from './WebviewProvider';
 import { IPipeline } from './pipelines/IPipeline';
 import { CICDPipeline } from './pipelines/CICDPipeline';
 import { OrchestrationPipeline } from './pipelines/OrchestrationPipeline';
+import { ObservabilityPipeline } from './pipelines/ObservabilityPipeline';
+import { SecurityPipeline } from './pipelines/SecurityPipeline';
 import { PipelineType } from '../shared/types';
 import { IParser } from './parsers/IParser';
 
@@ -10,7 +12,12 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('[Pipeline Visualizer] 🚀 Extension is activating...');
 
     const provider = new PipelineWebviewProvider(context.extensionUri);
-    const pipelines: IPipeline[] = [new CICDPipeline(), new OrchestrationPipeline()];
+    const pipelines: IPipeline[] = [
+        new CICDPipeline(),
+        new OrchestrationPipeline(),
+        new ObservabilityPipeline(),
+        new SecurityPipeline(),
+    ];
 
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(PipelineWebviewProvider.viewType, provider)
@@ -59,6 +66,14 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('orchestration.select', () => {
             provider.pipelineType = PipelineType.Orchestration;
+            discover();
+        }),
+        vscode.commands.registerCommand('observability.select', () => {
+            provider.pipelineType = PipelineType.Observability;
+            discover();
+        }),
+        vscode.commands.registerCommand('security.select', () => {
+            provider.pipelineType = PipelineType.Security;
             discover();
         })
     );
