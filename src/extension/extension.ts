@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import { PipelineWebviewProvider } from './WebviewProvider';
 import { GitHubActionsParser } from './parsers/GitHubActionsParser';
-import { CustomParser } from './parsers/CustomParser';
+
 import { IParser } from './parsers/IParser';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('[Pipeline Visualizer] 🚀 Extension is activating...');
 
     const provider = new PipelineWebviewProvider(context.extensionUri);
-    const parsers: IParser[] = [new GitHubActionsParser(), new CustomParser()];
+    const parsers: IParser[] = [new GitHubActionsParser()];
 
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(PipelineWebviewProvider.viewType, provider)
@@ -56,8 +56,7 @@ async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IPa
         github: '**/.github/workflows/*.{yml,yaml}',
         gitlab: '**/.gitlab-ci.yml',
         airflow: '**/dags/*.py',
-        kedro: '**/pipeline.py',
-        custom: '**/caldera.json'
+        kedro: '**/pipeline.py'
     };
 
     try {
