@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { PipelineData } from '../shared/types';
+import { PipelineData, PipelineType } from '../shared/types';
 
 export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'pipeline.view';
@@ -8,6 +8,7 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
     // Cache the latest data to send when webview opens
     private _cachedPipelineData?: PipelineData;
     private _isLoading: boolean = false;
+    public pipelineType: PipelineType = PipelineType.CICD;
 
     constructor(private readonly _extensionUri: vscode.Uri) { }
 

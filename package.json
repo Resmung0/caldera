@@ -33,6 +33,32 @@
           "name": "Live Preview"
         }
       ]
+    },
+    "commands": [
+      {
+        "command": "cicd.select",
+        "title": "CI/CD",
+        "category": "Pipeline"
+      },
+      {
+        "command": "orchestration.select",
+        "title": "Orchestration",
+        "category": "Pipeline"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "cicd.select",
+          "when": "view == pipeline.view",
+          "group": "navigation"
+        },
+        {
+          "command": "orchestration.select",
+          "when": "view == pipeline.view",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "scripts": {
