@@ -35,8 +35,9 @@ export function activate(context: vscode.ExtensionContext) {
                 if (pipeline) {
                     const parser = pipeline.parsers.find(p => p.canParse(fileName, content));
                     if (parser) {
-                        const data = parser.parse(content);
-                        provider.updatePipeline(data);
+                        const data = parser.parse(content, fileName);
+                        // We need to re-discover to get the full list of available pipelines
+                        discoverPipelines(provider, pipeline.parsers, fileName);
                     }
                 }
             }
@@ -50,15 +51,21 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.onDidChangeActiveTextEditor(() => watchFiles())
     );
 
-    const discover = () => {
+    const discover = (targetFile?: string) => {
         const pipeline = pipelines.find(p => p.type === provider.pipelineType);
         if (pipeline) {
-            discoverPipelines(provider, pipeline.parsers).catch(error => {
+            discoverPipelines(provider, pipeline.parsers, targetFile).catch(error => {
                 console.error(`${LOG_PREFIX} ❌ Error during pipeline discovery:`, error);
                 provider.setLoading(false);
             });
         }
     };
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('caldera.visualizePipeline', (filePath: string) => {
+            discover(filePath);
+        })
+    );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('cicd.select', () => {
@@ -87,43 +94,47 @@ export function activate(context: vscode.ExtensionContext) {
     console.log(`${LOG_PREFIX} ✅ Extension activated successfully!`);
 }
 
-async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IParser[]) {
-    const pipelinePatterns = {
-        github: '**/.github/workflows/*.{yml,yaml}',
-        gitlab: '**/.gitlab-ci.yml',
-        airflow: '**/dags/*.py',
-        kedro: '**/pipeline.py',
-        langchain: '**/*.py',
-        uipath: '**/*.xaml',
-    };
+async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IParser[], targetFile?: string) {
+    provider.setLoading(true);
+    console.log(`${LOG_PREFIX} 🔍 Discovering pipelines. Target: ${targetFile || 'All'}`);
+
+    const allPipelineFiles: string[] = [];
+    const pipelinePatterns = [
+        '**/.github/workflows/*.{yml,yaml}',
+        '**/.gitlab-ci.yml',
+        '**/dags/*.py',
+        '**/pipeline.py',
+        '**/*.py', // For LangChain, could be more specific
+        '**/*.xaml', // For UiPath
+    ];
+
+    const files = await vscode.workspace.findFiles(`{${pipelinePatterns.join(',')}}`, '**/node_modules/**');
+    files.forEach(file => allPipelineFiles.push(file.fsPath));
+
+    if (allPipelineFiles.length === 0) {
+        console.log(`${LOG_PREFIX} ⚠️ No pipeline files found.`);
+        provider.setLoading(false);
+        return;
+    }
+
+    const fileToParse = targetFile && allPipelineFiles.includes(targetFile)
+        ? vscode.Uri.file(targetFile)
+        : files[0];
 
     try {
-        provider.setLoading(true);
-        console.log(`${LOG_PREFIX} 🔍 Searching for pipeline files for category:`, provider.pipelineType);
+        const document = await vscode.workspace.openTextDocument(fileToParse);
+        const content = document.getText();
+        const parser = parsers.find(p => p.canParse(fileToParse.fsPath, content));
 
-        for (const [key, pattern] of Object.entries(pipelinePatterns)) {
-            try {
-                // Find up to 1 file for each pattern. We only visualize one at a time.
-                const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**', 1);
-                if (files.length > 0) {
-                    const document = await vscode.workspace.openTextDocument(files[0]);
-                    const content = document.getText();
-                    // Find a parser that can handle this file
-                    const parser = parsers.find(p => p.canParse(files[0].fsPath, content));
-
-                    if (parser) {
-                        console.log(`${LOG_PREFIX} ✅ Using parser: ${parser.name} for ${files[0].fsPath}`);
-                        const data = parser.parse(content);
-                        provider.updatePipeline(data);
-                        // Stop after finding the first valid pipeline in the category
-                        return;
-                    }
-                }
-            } catch (innerError) {
-                console.error(`${LOG_PREFIX} ❌ Error discovering ${key} pipelines:`, innerError);
-            }
+        if (parser) {
+            console.log(`${LOG_PREFIX} ✅ Parsing ${fileToParse.fsPath} with ${parser.name}`);
+            const data = parser.parse(content, fileToParse.fsPath);
+            provider.updatePipeline(data, allPipelineFiles);
+        } else {
+            console.log(`${LOG_PREFIX} ❓ No suitable parser for ${fileToParse.fsPath}`);
         }
-        console.log(`${LOG_PREFIX} ⚠️ No pipeline files found in workspace for the selected category`);
+    } catch (error) {
+        console.error(`${LOG_PREFIX} ❌ Error parsing ${fileToParse.fsPath}:`, error);
     } finally {
         provider.setLoading(false);
     }

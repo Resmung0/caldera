@@ -1,58 +1,93 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { PipelineCanvas } from './PipelineCanvas';
 import { LoadingScreen } from './LoadingScreen';
-import { PipelineData, ExtensionMessage } from '../shared/types';
+import { PipelineData, ExtensionMessage, WebViewMessage } from '../shared/types';
 
 // Acquire the VS Code API (must be done only once)
 const vscode = (window as any).acquireVsCodeApi ? (window as any).acquireVsCodeApi() : {
   postMessage: (msg: any) => console.log('Mock postMessage:', msg)
 };
 
-const App: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [pipelineData, setPipelineData] = useState<PipelineData>({
+// --- State Management Hook ---
+
+const useAppStore = () => {
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [availablePipelines, setAvailablePipelines] = React.useState<string[]>([]);
+  const [pipelineData, setPipelineData] = React.useState<PipelineData>({
+    filePath: '',
     framework: 'Waiting for data...',
     nodes: [],
     edges: []
   });
 
-  useEffect(() => {
-    console.log('[Pipeline Visualizer Webview] 🎬 App initialized, listening for messages...');
+  const postMessage = (message: WebViewMessage) => {
+    vscode.postMessage(message);
+  };
 
-    // Notify extension that we are ready to receive data (Handshake)
-    console.log('[Pipeline Visualizer Webview] 📤 Sending webviewReady signal...');
-    vscode.postMessage({ type: 'webviewReady' });
-
+  React.useEffect(() => {
     const handleMessage = (event: MessageEvent<ExtensionMessage>) => {
       const message = event.data;
-      console.log('[Pipeline Visualizer Webview] 📨 Message received:', message);
+      console.log('[WEBVIEW] 📨 Message received:', message);
 
       switch (message.type) {
         case 'updatePipeline':
-          console.log('[Pipeline Visualizer Webview] 📊 Updating pipeline data:', message.data);
           setPipelineData(message.data);
+          setAvailablePipelines(message.availablePipelines);
           break;
         case 'setLoading':
-          console.log('[Pipeline Visualizer Webview] ⏳ Setting loading:', message.isLoading);
           setIsLoading(message.isLoading);
           break;
         case 'error':
-          console.error('[Pipeline Visualizer Webview] ❌ Error:', message.message);
+          console.error('[WEBVIEW] ❌ Error:', message.message);
           break;
         default:
-          console.log('[Pipeline Visualizer Webview] ⚠️ Unknown message type:', message.type);
+          console.warn('[WEBVIEW] ⚠️ Unknown message type');
       }
     };
 
     window.addEventListener('message', handleMessage);
+
+    console.log('[WEBVIEW] 📤 Sending webviewReady signal...');
+    postMessage({ type: 'webviewReady' });
+
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  const handlePipelineSelect = (filePath: string) => {
+    console.log(`[WEBVIEW] 📤 Requesting pipeline update for: ${filePath}`);
+    postMessage({ type: 'selectPipeline', filePath });
+  };
+
+  return {
+    isLoading,
+    pipelineData,
+    availablePipelines,
+    handlePipelineSelect
+  };
+};
+
+
+// --- Main Component ---
+
+const App: React.FC = () => {
+  const {
+    isLoading,
+    pipelineData,
+    availablePipelines,
+    handlePipelineSelect
+  } = useAppStore();
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
-  return <PipelineCanvas data={pipelineData} />;
+  return (
+    <PipelineCanvas
+      data={pipelineData}
+      availablePipelines={availablePipelines}
+      onPipelineSelect={handlePipelineSelect}
+    />
+  );
 };
 
 export default App;

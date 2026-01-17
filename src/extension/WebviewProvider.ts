@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
-import { PipelineData, PipelineType } from '../shared/types';
+import { PipelineData, PipelineType, WebViewMessage } from '../shared/types';
 import { LOG_PREFIX } from './constants';
 
 export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'pipeline.view';
     private _view?: vscode.WebviewView;
 
-    // Cache the latest data to send when webview opens
     private _cachedPipelineData?: PipelineData;
+    private _availablePipelines: string[] = [];
     private _isLoading: boolean = false;
     public pipelineType: PipelineType = PipelineType.CICD;
 
@@ -28,33 +28,43 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-        // Listen for messages from the webview (Handshake)
-        webviewView.webview.onDidReceiveMessage(message => {
-            console.log(`${LOG_PREFIX} 📨 Received message from webview:`, message);
+        // Listen for messages from the webview
+        webviewView.webview.onDidReceiveMessage(async (message: WebViewMessage) => {
+            console.log(`${LOG_PREFIX} 📨 Received message:`, message);
 
-            if (message.type === 'webviewReady') {
-                console.log(`${LOG_PREFIX} 🤝 Handshake complete! Sending cached data...`);
+            switch (message.type) {
+                case 'webviewReady':
+                    console.log(`${LOG_PREFIX} 🤝 Webview ready! Sending initial data.`);
+                    if (this._isLoading) {
+                        this.setLoading(true);
+                    }
+                    if (this._cachedPipelineData) {
+                        this.updatePipeline(this._cachedPipelineData, this._availablePipelines);
+                    }
+                    break;
 
-                if (this._isLoading) {
-                    this.setLoading(true);
-                }
-                if (this._cachedPipelineData) {
-                    console.log(`${LOG_PREFIX} 📤 Sending cached pipeline data now.`);
-                    this._view?.webview.postMessage({ type: 'updatePipeline', data: this._cachedPipelineData });
-                } else {
-                    console.log(`${LOG_PREFIX} ⚠️ No cached data to send yet.`);
-                }
+                case 'selectPipeline':
+                    // Here, you would trigger the logic to parse the selected file
+                    // and then call updatePipeline with the new data.
+                    // This is a placeholder for the actual implementation.
+                    console.log(`${LOG_PREFIX} 🚀 Triggering update for: ${message.filePath}`);
+                    vscode.commands.executeCommand('caldera.visualizePipeline', message.filePath);
+                    break;
             }
         });
     }
 
-    public updatePipeline(data: PipelineData) {
-        // Always cache the data
+    public updatePipeline(data: PipelineData, availablePipelines: string[]) {
         this._cachedPipelineData = data;
+        this._availablePipelines = availablePipelines;
 
         if (this._view) {
             console.log(`${LOG_PREFIX} 📤 Sending pipeline data to webview`);
-            this._view.webview.postMessage({ type: 'updatePipeline', data });
+            this._view.webview.postMessage({
+                type: 'updatePipeline',
+                data,
+                availablePipelines,
+            });
         } else {
             console.log(`${LOG_PREFIX} 💾 Webview not open, data cached for later`);
         }

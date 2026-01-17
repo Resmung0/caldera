@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
+  Panel,
   Background,
   Controls,
   MiniMap,
@@ -250,11 +251,61 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
 
 // --- Main Canvas ---
 
+const PipelineSelectorPanel = ({ availablePipelines, currentPipeline, onPipelineSelect }) => {
+  if (!availablePipelines || availablePipelines.length <= 1) {
+    return null;
+  }
+
+  return (
+    <Panel position="top-right">
+      <div className="pipeline-selector">
+        <GitBranch size={14} />
+        <select
+          onChange={(e) => onPipelineSelect(e.target.value)}
+          value={currentPipeline}
+          title="Switch between detected pipeline files"
+        >
+          {availablePipelines.map((p) => (
+            <option key={p} value={p}>
+              {p.split('/').pop()}
+            </option>
+          ))}
+        </select>
+      </div>
+      <style>{`
+        .pipeline-selector {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: var(--color-bg-primary);
+          border-radius: 10px;
+          border: 1px solid var(--color-border);
+          box-shadow: 0 4px 6px var(--color-shadow);
+          color: var(--color-text-secondary);
+        }
+        .pipeline-selector select {
+          background: transparent;
+          border: none;
+          color: var(--color-text-primary);
+          font-size: 13px;
+          cursor: pointer;
+        }
+        .pipeline-selector select:focus {
+          outline: none;
+        }
+      `}</style>
+    </Panel>
+  );
+};
+
 interface PipelineCanvasProps {
   data: PipelineData;
+  availablePipelines: string[];
+  onPipelineSelect: (filePath: string) => void;
 }
 
-export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
+export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availablePipelines, onPipelineSelect }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -359,13 +410,18 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
       >
         <Background color="var(--color-bg-secondary)" gap={20} size={1} />
         <Controls />
-        <MiniMap 
-          pannable 
-          zoomable 
+        <MiniMap
+          pannable
+          zoomable
           nodeStrokeWidth={3}
           nodeColor={nodeColor}
           maskColor="rgba(24, 27, 40, 0.6)"
           style={{ width: 100, height: 70 }}
+        />
+        <PipelineSelectorPanel
+          availablePipelines={availablePipelines}
+          onPipelineSelect={onPipelineSelect}
+          currentPipeline={data.filePath}
         />
       </ReactFlow>
 

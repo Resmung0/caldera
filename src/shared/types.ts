@@ -14,15 +14,20 @@ export interface PipelineEdge {
 }
 
 export interface PipelineData {
+    filePath: string;
     framework: string;
     nodes: PipelineNode[];
     edges: PipelineEdge[];
 }
 
-export type ExtensionMessage = 
-    | { type: 'updatePipeline'; data: PipelineData }
+export type ExtensionMessage =
+    | { type: 'updatePipeline'; data: PipelineData; availablePipelines: string[] }
     | { type: 'setLoading'; isLoading: boolean }
     | { type: 'error'; message: string };
+
+export type WebViewMessage =
+    | { type: 'webviewReady' }
+    | { type: 'selectPipeline'; filePath: string };
 
 export enum PipelineType {
   CICD = 'cicd',

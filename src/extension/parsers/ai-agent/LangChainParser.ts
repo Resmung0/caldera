@@ -9,9 +9,10 @@ export class LangChainParser implements IParser {
     return content.includes("from langchain");
   }
 
-  parse(content: string): PipelineData {
+  parse(content: string, filePath: string): PipelineData {
     // Placeholder implementation
     return {
+      filePath,
       framework: this.name,
       nodes: [],
       edges: [],
