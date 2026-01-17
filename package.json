@@ -1,7 +1,7 @@
 {
-  "name": "caldera",
-  "displayName": "Caldera",
-  "description": "Visualização de pipelines em tempo real no VS Code",
+  "name": "pipeline-visualizer",
+  "displayName": "Pipeline Visualizer",
+  "description": "Real-time pipeline visualization in VS Code",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.75.0"
@@ -63,6 +63,7 @@
     "react-dom": "^19.2.3",
     "reactflow": "^11.11.4",
     "js-yaml": "^4.1.0",
-    "@types/js-yaml": "^4.0.5"
+    "@types/js-yaml": "^4.0.5",
+    "html-to-image": "^1.11.11"
   }
 }

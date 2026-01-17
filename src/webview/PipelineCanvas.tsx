@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { toPng } from 'html-to-image';
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
+  ControlButton,
   useNodesState,
   useEdgesState,
   ConnectionLineType,
@@ -23,7 +25,8 @@ import {
   XCircle,
   Clock,
   GitBranch,
-  Terminal
+  Terminal,
+  Camera
 } from 'lucide-react';
 
 const nodeWidth = 220;
@@ -260,6 +263,24 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
 
   const nodeTypes = useMemo(() => ({ custom: PipelineNodeItem }), []);
 
+  const handleExportPNG = () => {
+    const reactFlowElement = document.querySelector('.react-flow');
+    if (reactFlowElement) {
+      const computedStyle = getComputedStyle(reactFlowElement);
+      const backgroundColor = computedStyle.backgroundColor;
+      toPng(reactFlowElement as HTMLElement, {
+        backgroundColor: backgroundColor || '#181B28',
+        width: reactFlowElement.scrollWidth,
+        height: reactFlowElement.scrollHeight,
+      }).then((dataUrl) => {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'pipeline.png';
+        a.click();
+      });
+    }
+  };
+
   const nodeColor = useCallback(() => '#f20d63', []);
 
   useEffect(() => {
@@ -358,7 +379,11 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
         fitView
       >
         <Background color="var(--color-bg-secondary)" gap={20} size={1} />
-        <Controls />
+        <Controls>
+          <ControlButton onClick={handleExportPNG} title="Export as PNG">
+            <Camera size={16} />
+          </ControlButton>
+        </Controls>
         <MiniMap 
           pannable 
           zoomable 
