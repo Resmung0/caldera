@@ -80,9 +80,9 @@ const TopPanel = () => {
           background: rgba(30, 32, 49, 0.7);
           backdrop-filter: blur(10px);
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid var(--color-border);
           z-index: 100;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 6px var(--color-shadow);
         }
         .active-indicator {
           position: absolute;
@@ -113,11 +113,11 @@ const TopPanel = () => {
           z-index: 1;
         }
         .context-btn:hover:not(.active) {
-          color: white;
-          background: rgba(255, 255, 255, 0.1);
+          color: var(--color-text-primary);
+          background: var(--color-border);
         }
         .context-btn.active {
-          color: white;
+          color: var(--color-text-primary);
         }
       `}</style>
     </div>
@@ -162,13 +162,13 @@ const PipelineNodeItem = ({ data }: NodeProps) => {
 
       <style>{`
         .pipeline-node-item {
-          background: #1e2031;
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--color-bg-primary);
+          color: var(--color-text-primary);
+          border: 1px solid var(--color-border);
           border-radius: 12px;
           padding: 12px;
           width: 200px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 6px var(--color-shadow);
           transition: all 0.3s ease;
         }
         .pipeline-node-item:hover {
@@ -206,7 +206,7 @@ const PipelineNodeItem = ({ data }: NodeProps) => {
           background: #f20d63 !important;
           width: 8px !important;
           height: 8px !important;
-          border: 2px solid #1e2031 !important;
+          border: 2px solid var(--color-bg-primary) !important;
         }
       `}</style>
     </div>
@@ -260,9 +260,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
 
   const nodeTypes = useMemo(() => ({ custom: PipelineNodeItem }), []);
 
-  const nodeColor = useCallback((node: any) => {
-    return '#f20d63';
-  }, []);
+  const nodeColor = useCallback(() => '#f20d63', []);
 
   useEffect(() => {
     const initialNodes = data.nodes.map(n => ({
@@ -305,12 +303,12 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
       <div style={{
         width: '100%',
         height: '100vh',
-        background: '#181B28',
+        background: 'var(--color-bg-tertiary)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        color: 'white'
+        color: 'var(--color-text-primary)'
       }}>
         <TopPanel />
         <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
@@ -322,7 +320,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
   }
 
   return (
-    <div style={{ width: '100%', height: '100vh', background: '#181B28' }}>
+    <div style={{ width: '100%', height: '100vh', background: 'var(--color-bg-tertiary)' }}>
       <TopPanel />
 
       <ReactFlow
@@ -359,21 +357,15 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
         connectionLineType={ConnectionLineType.SmoothStep}
         fitView
       >
-        <Background color="#2a2d3e" gap={20} size={1} />
-        <Controls style={{ background: '#1e2031', border: 'none', fill: 'white' }} />
+        <Background color="var(--color-bg-secondary)" gap={20} size={1} />
+        <Controls />
         <MiniMap 
           pannable 
           zoomable 
           nodeStrokeWidth={3}
           nodeColor={nodeColor}
-          style={{ 
-            background: '#1e2031', 
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '8px',
-            width: 120,
-            height: 80
-          }}
           maskColor="rgba(24, 27, 40, 0.6)"
+          style={{ width: 100, height: 70 }}
         />
       </ReactFlow>
 
