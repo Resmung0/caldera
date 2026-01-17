@@ -8,7 +8,7 @@ export const LoadingScreen: React.FC = () => {
         <div className="pulse"></div>
         <div className="pulse"></div>
       </div>
-      <div className="loading-text">Caldera está sondando o terreno...</div>
+      <div className="loading-text">Caldera is scanning for pipeline tools...</div>
       <style>{`
         .loading-container {
           display: flex;
