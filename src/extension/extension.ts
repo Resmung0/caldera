@@ -7,9 +7,10 @@ import { AIAgentPipeline } from './pipelines/AIAgentPipeline';
 import { RPAPipeline } from './pipelines/RPAPipeline';
 import { PipelineType } from '../shared/types';
 import { IParser } from './parsers/IParser';
+import { LOG_PREFIX } from './constants';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('[Caldera] 🚀 Extension is activating...');
+    console.log(`${LOG_PREFIX} 🚀 Extension is activating...`);
 
     const provider = new PipelineWebviewProvider(context.extensionUri);
     const pipelines: IPipeline[] = [
@@ -22,7 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(PipelineWebviewProvider.viewType, provider)
     );
-    console.log('[Caldera] ✅ Webview provider registered');
+    console.log(`${LOG_PREFIX} ✅ Webview provider registered`);
 
     const watchFiles = () => {
         try {
@@ -40,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             }
         } catch (error) {
-            console.error('[Caldera] ❌ Error in watchFiles:', error);
+            console.error(`${LOG_PREFIX} ❌ Error in watchFiles:`, error);
         }
     };
 
@@ -53,7 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
         const pipeline = pipelines.find(p => p.type === provider.pipelineType);
         if (pipeline) {
             discoverPipelines(provider, pipeline.parsers).catch(error => {
-                console.error('[Caldera] ❌ Error during pipeline discovery:', error);
+                console.error(`${LOG_PREFIX} ❌ Error during pipeline discovery:`, error);
                 provider.setLoading(false);
             });
         }
@@ -78,12 +79,12 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    console.log('[Caldera] 🔍 Starting pipeline discovery...');
+    console.log(`${LOG_PREFIX} 🔍 Starting pipeline discovery...`);
     discover();
 
     watchFiles();
 
-    console.log('[Caldera] ✅ Extension activated successfully!');
+    console.log(`${LOG_PREFIX} ✅ Extension activated successfully!`);
 }
 
 async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IParser[]) {
@@ -98,7 +99,7 @@ async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IPa
 
     try {
         provider.setLoading(true);
-        console.log('[Caldera] 🔍 Searching for pipeline files for category:', provider.pipelineType);
+        console.log(`${LOG_PREFIX} 🔍 Searching for pipeline files for category:`, provider.pipelineType);
 
         for (const [key, pattern] of Object.entries(pipelinePatterns)) {
             try {
@@ -111,7 +112,7 @@ async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IPa
                     const parser = parsers.find(p => p.canParse(files[0].fsPath, content));
 
                     if (parser) {
-                        console.log(`[Caldera] ✅ Using parser: ${parser.name} for ${files[0].fsPath}`);
+                        console.log(`${LOG_PREFIX} ✅ Using parser: ${parser.name} for ${files[0].fsPath}`);
                         const data = parser.parse(content);
                         provider.updatePipeline(data);
                         // Stop after finding the first valid pipeline in the category
@@ -119,10 +120,10 @@ async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IPa
                     }
                 }
             } catch (innerError) {
-                console.error(`[Caldera] ❌ Error discovering ${key} pipelines:`, innerError);
+                console.error(`${LOG_PREFIX} ❌ Error discovering ${key} pipelines:`, innerError);
             }
         }
-        console.log('[Caldera] ⚠️ No pipeline files found in workspace for the selected category');
+        console.log(`${LOG_PREFIX} ⚠️ No pipeline files found in workspace for the selected category`);
     } finally {
         provider.setLoading(false);
     }

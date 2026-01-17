@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
+  MiniMap,
   useNodesState,
   useEdgesState,
   ConnectionLineType,
@@ -41,8 +42,8 @@ const TopPanel = () => {
   ];
 
   const activeIndex = contexts.findIndex(c => c.id === activeContext);
-  const BUTTON_WIDTH = 40;
-  const GAP = 12;
+  const BUTTON_WIDTH = 32;
+  const GAP = 8;
 
   return (
     <div className="top-panel">
@@ -63,46 +64,46 @@ const TopPanel = () => {
             onClick={() => setActiveContext(ctx.id)}
             title={ctx.label}
           >
-            <Icon size={20} />
+            <Icon size={16} />
           </button>
         );
       })}
       <style>{`
         .top-panel {
           position: absolute;
-          top: 20px;
+          top: 16px;
           left: 50%;
           transform: translateX(-50%);
           display: flex;
-          gap: 12px;
-          padding: 8px 16px;
+          gap: 8px;
+          padding: 6px 12px;
           background: rgba(30, 32, 49, 0.7);
           backdrop-filter: blur(10px);
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          border: 1px solid var(--color-border);
           z-index: 100;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 6px var(--color-shadow);
         }
         .active-indicator {
           position: absolute;
-          left: 16px;
-          top: 8px;
-          width: 40px;
-          height: 40px;
+          left: 12px;
+          top: 6px;
+          width: 32px;
+          height: 32px;
           background: #f20d63;
-          border-radius: 8px;
+          border-radius: 6px;
           z-index: 0;
           transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
           box-shadow: 0 0 15px rgba(242, 13, 99, 0.4);
         }
         .context-btn {
-          width: 40px;
-          height: 40px;
+          width: 32px;
+          height: 32px;
           padding: 0;
           background: transparent;
           border: none;
           color: #888;
-          border-radius: 8px;
+          border-radius: 6px;
           cursor: pointer;
           transition: color 0.2s ease;
           display: flex;
@@ -112,11 +113,11 @@ const TopPanel = () => {
           z-index: 1;
         }
         .context-btn:hover:not(.active) {
-          color: white;
-          background: rgba(255, 255, 255, 0.1);
+          color: var(--color-text-primary);
+          background: var(--color-border);
         }
         .context-btn.active {
-          color: white;
+          color: var(--color-text-primary);
         }
       `}</style>
     </div>
@@ -161,13 +162,13 @@ const PipelineNodeItem = ({ data }: NodeProps) => {
 
       <style>{`
         .pipeline-node-item {
-          background: #1e2031;
-          color: white;
-          border: 1px solid rgba(137, 31, 255, 0.3);
+          background: var(--color-bg-primary);
+          color: var(--color-text-primary);
+          border: 1px solid var(--color-border);
           border-radius: 12px;
           padding: 12px;
           width: 200px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 6px var(--color-shadow);
           transition: all 0.3s ease;
         }
         .pipeline-node-item:hover {
@@ -205,7 +206,7 @@ const PipelineNodeItem = ({ data }: NodeProps) => {
           background: #f20d63 !important;
           width: 8px !important;
           height: 8px !important;
-          border: 2px solid #1e2031 !important;
+          border: 2px solid var(--color-bg-primary) !important;
         }
       `}</style>
     </div>
@@ -259,6 +260,8 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
 
   const nodeTypes = useMemo(() => ({ custom: PipelineNodeItem }), []);
 
+  const nodeColor = useCallback(() => '#f20d63', []);
+
   useEffect(() => {
     const initialNodes = data.nodes.map(n => ({
       id: n.id,
@@ -300,12 +303,12 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
       <div style={{
         width: '100%',
         height: '100vh',
-        background: '#181B28',
+        background: 'var(--color-bg-tertiary)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        color: 'white'
+        color: 'var(--color-text-primary)'
       }}>
         <TopPanel />
         <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
@@ -317,7 +320,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
   }
 
   return (
-    <div style={{ width: '100%', height: '100vh', background: '#181B28' }}>
+    <div style={{ width: '100%', height: '100vh', background: 'var(--color-bg-tertiary)' }}>
       <TopPanel />
 
       <ReactFlow
@@ -352,11 +355,18 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
           }));
         }}
         connectionLineType={ConnectionLineType.SmoothStep}
-        colorMode="dark"
         fitView
       >
-        <Background color="#2a2d3e" gap={20} size={1} />
+        <Background color="var(--color-bg-secondary)" gap={20} size={1} />
         <Controls />
+        <MiniMap 
+          pannable 
+          zoomable 
+          nodeStrokeWidth={3}
+          nodeColor={nodeColor}
+          maskColor="rgba(24, 27, 40, 0.6)"
+          style={{ width: 100, height: 70 }}
+        />
       </ReactFlow>
 
       <style>{`
