@@ -42,8 +42,8 @@ const TopPanel = () => {
   ];
 
   const activeIndex = contexts.findIndex(c => c.id === activeContext);
-  const BUTTON_WIDTH = 40;
-  const GAP = 12;
+  const BUTTON_WIDTH = 32;
+  const GAP = 8;
 
   return (
     <div className="top-panel">
@@ -64,46 +64,46 @@ const TopPanel = () => {
             onClick={() => setActiveContext(ctx.id)}
             title={ctx.label}
           >
-            <Icon size={20} />
+            <Icon size={16} />
           </button>
         );
       })}
       <style>{`
         .top-panel {
           position: absolute;
-          top: 20px;
+          top: 16px;
           left: 50%;
           transform: translateX(-50%);
           display: flex;
-          gap: 12px;
-          padding: 8px 16px;
+          gap: 8px;
+          padding: 6px 12px;
           background: rgba(30, 32, 49, 0.7);
           backdrop-filter: blur(10px);
-          border-radius: 12px;
+          border-radius: 10px;
           border: 1px solid var(--color-border);
           z-index: 100;
           box-shadow: 0 4px 6px var(--color-shadow);
         }
         .active-indicator {
           position: absolute;
-          left: 16px;
-          top: 8px;
-          width: 40px;
-          height: 40px;
+          left: 12px;
+          top: 6px;
+          width: 32px;
+          height: 32px;
           background: #f20d63;
-          border-radius: 8px;
+          border-radius: 6px;
           z-index: 0;
           transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
           box-shadow: 0 0 15px rgba(242, 13, 99, 0.4);
         }
         .context-btn {
-          width: 40px;
-          height: 40px;
+          width: 32px;
+          height: 32px;
           padding: 0;
           background: transparent;
           border: none;
           color: #888;
-          border-radius: 8px;
+          border-radius: 6px;
           cursor: pointer;
           transition: color 0.2s ease;
           display: flex;
