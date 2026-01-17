@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
+  MiniMap,
   useNodesState,
   useEdgesState,
   ConnectionLineType,
@@ -163,7 +164,7 @@ const PipelineNodeItem = ({ data }: NodeProps) => {
         .pipeline-node-item {
           background: #1e2031;
           color: white;
-          border: 1px solid rgba(137, 31, 255, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 12px;
           padding: 12px;
           width: 200px;
@@ -259,6 +260,10 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
 
   const nodeTypes = useMemo(() => ({ custom: PipelineNodeItem }), []);
 
+  const nodeColor = useCallback((node: any) => {
+    return '#f20d63';
+  }, []);
+
   useEffect(() => {
     const initialNodes = data.nodes.map(n => ({
       id: n.id,
@@ -352,11 +357,24 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
           }));
         }}
         connectionLineType={ConnectionLineType.SmoothStep}
-        colorMode="dark"
         fitView
       >
         <Background color="#2a2d3e" gap={20} size={1} />
-        <Controls />
+        <Controls style={{ background: '#1e2031', border: 'none', fill: 'white' }} />
+        <MiniMap 
+          pannable 
+          zoomable 
+          nodeStrokeWidth={3}
+          nodeColor={nodeColor}
+          style={{ 
+            background: '#1e2031', 
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            width: 120,
+            height: 80
+          }}
+          maskColor="rgba(24, 27, 40, 0.6)"
+        />
       </ReactFlow>
 
       <style>{`
