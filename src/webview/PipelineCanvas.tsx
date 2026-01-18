@@ -25,7 +25,8 @@ import {
   Clock,
   GitBranch,
   Terminal,
-  Rows
+  ArrowRightLeft,
+  ArrowUpDown
 } from 'lucide-react';
 
 const nodeWidth = 220;
@@ -377,7 +378,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
         <Background color="var(--color-bg-secondary)" gap={20} size={1} />
         <Controls>
           <ControlButton onClick={toggleLayoutDirection} title="Toggle Orientation">
-            <Rows size={16} />
+            {layoutDirection === 'TB' ? <ArrowRightLeft size={16} /> : <ArrowUpDown size={16} />}
           </ControlButton>
         </Controls>
         <MiniMap 
