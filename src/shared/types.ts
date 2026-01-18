@@ -18,6 +18,8 @@ export interface PipelineData {
     framework: string;
     nodes: PipelineNode[];
     edges: PipelineEdge[];
+    category?: string;
+    tools?: string[];
 }
 
 export type ExtensionMessage =
@@ -27,7 +29,8 @@ export type ExtensionMessage =
 
 export type WebViewMessage =
     | { type: 'webviewReady' }
-    | { type: 'selectPipeline'; filePath: string };
+    | { type: 'selectPipeline', filePath: string }
+    | { type: 'selectCategory', category: string };
 
 export enum PipelineType {
   CICD = 'cicd',
