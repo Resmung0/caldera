@@ -58,11 +58,17 @@ const useAppStore = () => {
     postMessage({ type: 'selectPipeline', filePath });
   };
 
+  const handleCategorySelect = (category: string) => {
+    console.log(`[WEBVIEW] 📤 Requesting pipeline scan for category: ${category}`);
+    postMessage({ type: 'selectCategory', category });
+  };
+
   return {
     isLoading,
     pipelineData,
     availablePipelines,
-    handlePipelineSelect
+    handlePipelineSelect,
+    handleCategorySelect
   };
 };
 
@@ -74,7 +80,8 @@ const App: React.FC = () => {
     isLoading,
     pipelineData,
     availablePipelines,
-    handlePipelineSelect
+    handlePipelineSelect,
+    handleCategorySelect
   } = useAppStore();
 
   if (isLoading) {
@@ -86,6 +93,7 @@ const App: React.FC = () => {
       data={pipelineData}
       availablePipelines={availablePipelines}
       onPipelineSelect={handlePipelineSelect}
+      onCategorySelect={handleCategorySelect}
     />
   );
 };

@@ -52,6 +52,11 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
                     console.log(`${LOG_PREFIX} 🚀 Triggering update for: ${message.filePath}`);
                     vscode.commands.executeCommand('caldera.visualizePipeline', message.filePath);
                     break;
+
+                case 'selectCategory':
+                    console.log(`${LOG_PREFIX} 🚀 Triggering category scan for: ${message.category}`);
+                    vscode.commands.executeCommand('caldera.selectCategory', message.category);
+                    break;
             }
         });
     }

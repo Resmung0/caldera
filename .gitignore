@@ -1,6 +1,13 @@
-node_modules
-dist
-dist-webview
-.vscode-test
-*.vsix
-.DS_Store
+# Dependencies
+/node_modules
+
+# Build artifacts
+/dist
+/dist-webview
+
+# Logs
+*.log
+webview_dev.log
+
+# VSCode specific
+.vscode/

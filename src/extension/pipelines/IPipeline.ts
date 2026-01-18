@@ -4,4 +4,5 @@ import { PipelineType } from "../../shared/types";
 export interface IPipeline {
   type: PipelineType;
   parsers: IParser[];
+  patterns: string[];
 }

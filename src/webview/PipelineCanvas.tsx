@@ -18,6 +18,7 @@ import ReactFlow, {
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { PipelineData } from '../shared/types';
+import { EmptyState } from './EmptyState';
 import {
   Database,
   Sparkle,
@@ -38,7 +39,7 @@ const nodeHeight = 80;
 
 // --- Components ---
 
-const TopPanel = () => {
+const TopPanel = ({ onCategorySelect }) => {
   const [activeContext, setActiveContext] = useState<string>('cicd');
 
   const contexts = [
@@ -68,7 +69,10 @@ const TopPanel = () => {
           <button
             key={ctx.id}
             className={`context-btn ${isActive ? 'active' : ''}`}
-            onClick={() => setActiveContext(ctx.id)}
+            onClick={() => {
+              setActiveContext(ctx.id);
+              onCategorySelect(ctx.id);
+            }}
             title={ctx.label}
           >
             <Icon size={16} />
@@ -400,9 +404,10 @@ interface PipelineCanvasProps {
   data: PipelineData;
   availablePipelines: string[];
   onPipelineSelect: (filePath: string) => void;
+  onCategorySelect: (category: string) => void;
 }
 
-export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availablePipelines, onPipelineSelect }) => {
+export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availablePipelines, onPipelineSelect, onCategorySelect }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
@@ -478,6 +483,23 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
 
   // Handle empty state
   if (data.nodes.length === 0) {
+    // If category and tools are provided, it means a scan was completed with no results
+    if (data.category && data.tools) {
+      return (
+        <div style={{
+          width: '100%',
+          height: '100vh',
+          background: 'var(--color-bg-tertiary)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <TopPanel onCategorySelect={onCategorySelect} />
+          <EmptyState category={data.category} tools={data.tools} />
+        </div>
+      );
+    }
+
+    // Default "waiting" screen on initial load
     return (
       <div style={{
         width: '100%',
@@ -489,7 +511,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
         justifyContent: 'center',
         color: 'var(--color-text-primary)'
       }}>
-        <TopPanel />
+        <TopPanel onCategorySelect={onCategorySelect} />
         <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
         <div style={{ marginTop: '0.5rem', color: '#666' }}>
           Waiting for pipeline data...
@@ -500,7 +522,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
 
   return (
     <div style={{ width: '100%', height: '100vh', background: 'var(--color-bg-tertiary)' }}>
-      <TopPanel />
+      <TopPanel onCategorySelect={onCategorySelect} />
 
       <ReactFlow
         nodes={nodes}
