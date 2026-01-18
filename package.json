@@ -57,13 +57,14 @@
   },
   "dependencies": {
     "@types/dagre": "^0.7.53",
+    "@types/js-yaml": "^4.0.5",
     "dagre": "^0.8.5",
+    "html-to-image": "^1.11.11",
+    "js-yaml": "^4.1.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "reactflow": "^11.11.4",
-    "js-yaml": "^4.1.0",
-    "@types/js-yaml": "^4.0.5",
-    "html-to-image": "^1.11.11"
+    "react-icons": "^5.5.0",
+    "reactflow": "^11.11.4"
   }
 }
