@@ -8,9 +8,10 @@ export class GitLabCIParser implements IParser {
     return fileName.endsWith(".gitlab-ci.yml");
   }
 
-  parse(content: string): PipelineData {
+  parse(content: string, filePath: string): PipelineData {
     // Placeholder implementation
     return {
+      filePath,
       framework: this.name,
       nodes: [],
       edges: [],

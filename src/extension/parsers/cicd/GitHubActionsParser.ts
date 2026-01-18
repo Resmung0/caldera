@@ -9,7 +9,7 @@ export class GitHubActionsParser implements IParser {
         return fileName.endsWith('.yml') || fileName.endsWith('.yaml');
     }
 
-    parse(content: string): PipelineData {
+    parse(content: string, filePath: string): PipelineData {
         try {
             const doc = yaml.load(content) as any;
             const nodes: PipelineNode[] = [];
@@ -38,13 +38,14 @@ export class GitHubActionsParser implements IParser {
             }
 
             return {
+                filePath,
                 framework: this.name,
                 nodes,
                 edges
             };
         } catch (e) {
             console.error('Failed to parse GitHub Action', e);
-            return { framework: 'Unknown', nodes: [], edges: [] };
+            return { filePath, framework: 'Unknown', nodes: [], edges: [] };
         }
     }
 }

@@ -9,9 +9,10 @@ export class KedroParser implements IParser {
     return content.includes("create_pipeline");
   }
 
-  parse(content: string): PipelineData {
+  parse(content: string, filePath: string): PipelineData {
     // Placeholder implementation
     return {
+      filePath,
       framework: this.name,
       nodes: [],
       edges: [],
