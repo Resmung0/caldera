@@ -52,90 +52,83 @@ const TopPanel = ({ onCategorySelect, activeCategory }) => {
   const contexts = [
     { id: 'cicd', icon: Workflow, label: 'CI/CD' },
     { id: 'data-processing', icon: Database, label: 'Data Processing' },
-    { id: 'ai-agent', icon: Sparkle, label: 'AI Orchestration' },
-    { id: 'rpa', icon: Bot, label: 'RPA' },
+    { id: 'ai-agent', icon: Sparkle, label: 'AI Agent' },
+    { id: 'rpa', icon: Bot, label: 'Automation' },
   ];
-
-  const activeIndex = contexts.findIndex(c => c.id === activeContext);
-  const BUTTON_WIDTH = 32;
-  const GAP = 8;
 
   return (
     <div className="top-panel">
-      <div
-        className="active-indicator"
-        style={{
-          transform: `translateX(${activeIndex * (BUTTON_WIDTH + GAP)}px)`
-        }}
-      />
-
-      {contexts.map((ctx) => {
+      {contexts.map((ctx, index) => {
         const Icon = ctx.icon;
         const isActive = activeContext === ctx.id;
+        const isLast = index === contexts.length - 1;
         return (
-          <button
-            key={ctx.id}
-            className={`context-btn ${isActive ? 'active' : ''}`}
-            onClick={() => {
-              setActiveContext(ctx.id);
-              onCategorySelect(ctx.id);
-            }}
-            title={ctx.label}
-          >
-            <Icon size={16} />
-          </button>
+          <React.Fragment key={ctx.id}>
+            <button
+              className={`context-tab ${isActive ? 'active' : ''}`}
+              onClick={() => {
+                setActiveContext(ctx.id);
+                onCategorySelect(ctx.id);
+              }}
+            >
+              <Icon size={16} />
+              <span className="tab-label">{ctx.label}</span>
+            </button>
+            {!isLast && <div className="separator">|</div>}
+          </React.Fragment>
         );
       })}
       <style>{`
         .top-panel {
           position: absolute;
-          top: 16px;
+          top: 12px;
           left: 50%;
           transform: translateX(-50%);
           display: flex;
-          gap: 8px;
-          padding: 6px 12px;
-          background: rgba(30, 32, 49, 0.7);
+          align-items: center;
+          background: rgba(30, 32, 49, 0.9);
           backdrop-filter: blur(10px);
-          border-radius: 10px;
-          border: 1px solid var(--color-border);
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
           z-index: 100;
-          box-shadow: 0 4px 6px var(--color-shadow);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+          padding: 2px;
         }
-        .active-indicator {
-          position: absolute;
-          left: 12px;
-          top: 6px;
-          width: 32px;
-          height: 32px;
-          background: #f20d63;
-          border-radius: 6px;
-          z-index: 0;
-          transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
-          box-shadow: 0 0 15px rgba(242, 13, 99, 0.4);
-        }
-        .context-btn {
-          width: 32px;
-          height: 32px;
-          padding: 0;
-          background: transparent;
-          border: none;
-          color: #888;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: color 0.2s ease;
+        .context-tab {
           display: flex;
           align-items: center;
-          justify-content: center;
+          gap: 6px;
+          padding: 8px 12px;
+          background: transparent;
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-size: 12px;
+          font-weight: 500;
+          white-space: nowrap;
           position: relative;
-          z-index: 1;
+          border-radius: 6px;
         }
-        .context-btn:hover:not(.active) {
-          color: var(--color-text-primary);
-          background: var(--color-border);
+        .context-tab:hover:not(.active) {
+          color: rgba(255, 255, 255, 0.8);
+          background: rgba(255, 255, 255, 0.05);
         }
-        .context-btn.active {
-          color: var(--color-text-primary);
+        .context-tab.active {
+          color: white;
+          background: #f20d63;
+          box-shadow: 0 2px 8px rgba(242, 13, 99, 0.4);
+        }
+        .tab-label {
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .separator {
+          color: rgba(255, 255, 255, 0.3);
+          font-size: 14px;
+          font-weight: 300;
+          margin: 0 2px;
+          user-select: none;
         }
       `}</style>
     </div>
