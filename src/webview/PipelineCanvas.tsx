@@ -32,6 +32,7 @@ import {
   ArrowRightLeft,
   ArrowUpDown
 } from 'lucide-react';
+import { SiGithub, SiGitlab } from 'react-icons/si';
 
 const nodeWidth = 220;
 const nodeHeight = 80;
@@ -160,7 +161,16 @@ const PipelineNodeItem = ({ data }: NodeProps) => {
       <div className="node-body">
         {data.framework && (
           <div className="node-meta">
-            <GitBranch size={12} style={{ marginRight: 4 }} />
+            {(() => {
+              const framework = data.framework.toLowerCase();
+              if (framework.includes('github')) {
+                return <SiGithub size={12} style={{ marginRight: 4 }} />;
+              }
+              if (framework.includes('gitlab')) {
+                return <SiGitlab size={12} style={{ marginRight: 4 }} />;
+              }
+              return <GitBranch size={12} style={{ marginRight: 4 }} />;
+            })()}
             <span>{data.framework}</span>
           </div>
         )}
