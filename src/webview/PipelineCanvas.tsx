@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { toPng } from 'html-to-image';
 import ReactFlow, {
   Background,
   Controls,
   ControlButton,
   MiniMap,
+  ControlButton,
   useNodesState,
   useEdgesState,
   ConnectionLineType,
@@ -25,6 +27,7 @@ import {
   Clock,
   GitBranch,
   Terminal,
+  Camera,
   ArrowRightLeft,
   ArrowUpDown
 } from 'lucide-react';
@@ -277,6 +280,24 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
     [layoutDirection]
   );
 
+  const handleExportPNG = () => {
+    const reactFlowElement = document.querySelector('.react-flow');
+    if (reactFlowElement) {
+      const computedStyle = getComputedStyle(reactFlowElement);
+      const backgroundColor = computedStyle.backgroundColor;
+      toPng(reactFlowElement as HTMLElement, {
+        backgroundColor: backgroundColor || '#181B28',
+        width: reactFlowElement.scrollWidth,
+        height: reactFlowElement.scrollHeight,
+      }).then((dataUrl) => {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'pipeline.png';
+        a.click();
+      });
+    }
+  };
+
   const nodeColor = useCallback(() => '#f20d63', []);
 
   useEffect(() => {
@@ -379,6 +400,9 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
         <Controls>
           <ControlButton onClick={toggleLayoutDirection} title="Toggle Orientation">
             {layoutDirection === 'TB' ? <ArrowRightLeft size={16} /> : <ArrowUpDown size={16} />}
+          </ControlButton>
+          <ControlButton onClick={handleExportPNG} title="Export as PNG">
+            <Camera size={16} />
           </ControlButton>
         </Controls>
         <MiniMap 
