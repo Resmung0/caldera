@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
+  ControlButton,
   MiniMap,
   useNodesState,
   useEdgesState,
@@ -23,7 +24,9 @@ import {
   XCircle,
   Clock,
   GitBranch,
-  Terminal
+  Terminal,
+  ArrowRightLeft,
+  ArrowUpDown
 } from 'lucide-react';
 
 const nodeWidth = 220;
@@ -125,6 +128,10 @@ const TopPanel = () => {
 };
 
 const PipelineNodeItem = ({ data }: NodeProps) => {
+  const { layoutDirection = 'TB' } = data;
+
+  const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
+  const sourcePosition = layoutDirection === 'LR' ? Position.Right : Position.Bottom;
   // Determine icon based on status or type if available
   const getStatusIcon = () => {
     switch (data.status) {
@@ -137,7 +144,7 @@ const PipelineNodeItem = ({ data }: NodeProps) => {
 
   return (
     <div className="pipeline-node-item">
-      <Handle type="target" position={Position.Top} className="handle" />
+      <Handle type="target" position={targetPosition} className="handle" />
 
       <div className="node-header">
         <div className="node-icon">
@@ -158,7 +165,7 @@ const PipelineNodeItem = ({ data }: NodeProps) => {
         </div>
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="handle" />
+      <Handle type="source" position={sourcePosition} className="handle" />
 
       <style>{`
         .pipeline-node-item {
@@ -236,8 +243,6 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
     const nodeWithPosition = dagreGraph.node(node.id);
     return {
       ...node,
-      targetPosition: direction === 'LR' ? 'left' : 'top',
-      sourcePosition: direction === 'LR' ? 'right' : 'bottom',
       position: {
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
@@ -257,8 +262,20 @@ interface PipelineCanvasProps {
 export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
 
-  const nodeTypes = useMemo(() => ({ custom: PipelineNodeItem }), []);
+  const toggleLayoutDirection = useCallback(() => {
+    setLayoutDirection((prevDirection) => (prevDirection === 'TB' ? 'LR' : 'TB'));
+  }, []);
+
+  const nodeTypes = useMemo(
+    () => ({
+      custom: (props) => (
+        <PipelineNodeItem {...props} data={{ ...props.data, layoutDirection }} />
+      ),
+    }),
+    [layoutDirection]
+  );
 
   const nodeColor = useCallback(() => '#f20d63', []);
 
@@ -290,12 +307,13 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
 
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
       initialNodes,
-      initialEdges
+      initialEdges,
+      layoutDirection
     );
 
     setNodes([...layoutedNodes]);
     setEdges([...layoutedEdges]);
-  }, [data, setNodes, setEdges]);
+  }, [data, setNodes, setEdges, layoutDirection]);
 
   // Handle empty state
   if (data.nodes.length === 0) {
@@ -358,7 +376,11 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data }) => {
         fitView
       >
         <Background color="var(--color-bg-secondary)" gap={20} size={1} />
-        <Controls />
+        <Controls>
+          <ControlButton onClick={toggleLayoutDirection} title="Toggle Orientation">
+            {layoutDirection === 'TB' ? <ArrowRightLeft size={16} /> : <ArrowUpDown size={16} />}
+          </ControlButton>
+        </Controls>
         <MiniMap 
           pannable 
           zoomable 
