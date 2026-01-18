@@ -32,35 +32,53 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ category, tools }) => {
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 20px;
-          color: var(--vscode-editor-foreground);
-          background-color: var(--vscode-editor-background);
+          padding: 40px 20px;
+          color: #cccccc;
+          background-color: #181B28;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
         }
         .empty-state-icon {
-          margin-bottom: 20px;
-          color: var(--vscode-editorWarning-foreground);
+          margin-bottom: 24px;
+          color: #ffcc02;
+          filter: drop-shadow(0 0 8px rgba(255, 204, 2, 0.3));
         }
         .empty-state-title {
-          margin: 0 0 10px 0;
-          font-size: 1.2em;
+          margin: 0 0 16px 0;
+          font-size: 18px;
+          font-weight: 400;
+          color: #ffffff;
+          line-height: 1.4;
+          max-width: 600px;
         }
         .empty-state-subtitle {
-          margin: 0;
-          font-size: 0.9em;
-          color: var(--vscode-editorHint-foreground);
+          margin: 0 0 24px 0;
+          font-size: 14px;
+          color: #9d9d9d;
+          line-height: 1.5;
+          max-width: 500px;
         }
         .empty-state-tools {
-          margin-top: 15px;
           display: flex;
-          gap: 10px;
+          gap: 12px;
           flex-wrap: wrap;
           justify-content: center;
+          max-width: 400px;
         }
         .empty-state-tool-tag {
-          padding: 5px 10px;
-          border-radius: 4px;
-          background-color: var(--vscode-button-secondaryBackground);
-          color: var(--vscode-button-secondaryForeground);
+          padding: 8px 16px;
+          border-radius: 6px;
+          background-color: #181B28;
+          color: #cccccc;
+          font-size: 13px;
+          font-weight: 500;
+          border: 1px solid #3e3e42;
+          transition: all 0.2s ease;
+        }
+        .empty-state-tool-tag:hover {
+          background-color: #1f2332;
+          border-color: #f20d63;
+          transform: translateY(-1px);
+          box-shadow: 0 0 15px rgba(242, 13, 99, 0.4), 0 0 25px rgba(242, 13, 99, 0.2);
         }
       `}</style>
     </div>

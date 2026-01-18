@@ -39,13 +39,20 @@ const nodeHeight = 80;
 
 // --- Components ---
 
-const TopPanel = ({ onCategorySelect }) => {
-  const [activeContext, setActiveContext] = useState<string>('cicd');
+const TopPanel = ({ onCategorySelect, activeCategory }) => {
+  const [activeContext, setActiveContext] = useState<string>(activeCategory || 'cicd');
+
+  // Update local state when activeCategory prop changes
+  React.useEffect(() => {
+    if (activeCategory && activeCategory !== activeContext) {
+      setActiveContext(activeCategory);
+    }
+  }, [activeCategory, activeContext]);
 
   const contexts = [
     { id: 'cicd', icon: Workflow, label: 'CI/CD' },
-    { id: 'data', icon: Database, label: 'Data Processing' },
-    { id: 'ai', icon: Sparkle, label: 'AI Orchestration' },
+    { id: 'data-processing', icon: Database, label: 'Data Processing' },
+    { id: 'ai-agent', icon: Sparkle, label: 'AI Orchestration' },
     { id: 'rpa', icon: Bot, label: 'RPA' },
   ];
 
@@ -411,6 +418,12 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
+  const [activeCategory, setActiveCategory] = useState<string>('cicd');
+
+  const handleCategorySelect = (category: string) => {
+    setActiveCategory(category);
+    onCategorySelect(category);
+  };
 
   const toggleLayoutDirection = useCallback(() => {
     setLayoutDirection((prevDirection) => (prevDirection === 'TB' ? 'LR' : 'TB'));
@@ -444,6 +457,13 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
   };
 
   const nodeColor = useCallback(() => '#f20d63', []);
+
+  // Update activeCategory when data.category changes (from extension)
+  useEffect(() => {
+    if (data.category && data.category !== activeCategory) {
+      setActiveCategory(data.category);
+    }
+  }, [data.category, activeCategory]);
 
   useEffect(() => {
     const initialNodes = data.nodes.map(n => ({
@@ -493,7 +513,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <TopPanel onCategorySelect={onCategorySelect} />
+          <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
           <EmptyState category={data.category} tools={data.tools} />
         </div>
       );
@@ -511,7 +531,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
         justifyContent: 'center',
         color: 'var(--color-text-primary)'
       }}>
-        <TopPanel onCategorySelect={onCategorySelect} />
+        <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
         <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
         <div style={{ marginTop: '0.5rem', color: '#666' }}>
           Waiting for pipeline data...
@@ -522,7 +542,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
 
   return (
     <div style={{ width: '100%', height: '100vh', background: 'var(--color-bg-tertiary)' }}>
-      <TopPanel onCategorySelect={onCategorySelect} />
+      <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
 
       <ReactFlow
         nodes={nodes}
