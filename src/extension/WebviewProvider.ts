@@ -23,7 +23,9 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [this._extensionUri]
+            localResourceRoots: [this._extensionUri],
+            enableCommandUris: false,
+            enableForms: false
         };
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
@@ -89,7 +91,7 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource}; img-src data: blob: ${webview.cspSource}; canvas-src data:;">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'unsafe-eval'; img-src data: blob: ${webview.cspSource}; connect-src ${webview.cspSource}; font-src ${webview.cspSource}; worker-src blob:;">
                 <link rel="stylesheet" href="${styleUri}">
                 <title>Pipeline Visualizer</title>
             </head>

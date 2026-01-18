@@ -1,6 +1,6 @@
 {
-  "name": "pipeline-visualizer",
-  "displayName": "Pipeline Visualizer",
+  "name": "caldera",
+  "displayName": "Caldera",
   "description": "Real-time pipeline visualization in VS Code",
   "version": "0.0.1",
   "engines": {

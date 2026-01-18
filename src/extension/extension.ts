@@ -100,7 +100,8 @@ async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IPa
 
     const allPipelineFiles: string[] = [];
     const pipelinePatterns = [
-        '**/.github/workflows/*.{yml,yaml}',
+        '**/.github/workflows/*.yml',
+        '**/.github/workflows/*.yaml',
         '**/.gitlab-ci.yml',
         '**/dags/*.py',
         '**/pipeline.py',
@@ -108,7 +109,12 @@ async function discoverPipelines(provider: PipelineWebviewProvider, parsers: IPa
         '**/*.xaml', // For UiPath
     ];
 
-    const files = await vscode.workspace.findFiles(`{${pipelinePatterns.join(',')}}`, '**/node_modules/**');
+    // Find files using individual patterns to avoid nested brace issues
+    const filePromises = pipelinePatterns.map(pattern => 
+        vscode.workspace.findFiles(pattern, '**/node_modules/**')
+    );
+    const fileArrays = await Promise.all(filePromises);
+    const files = fileArrays.flat();
     files.forEach(file => allPipelineFiles.push(file.fsPath));
 
     if (allPipelineFiles.length === 0) {
