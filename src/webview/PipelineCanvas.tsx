@@ -1,616 +1,789 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { toPng } from 'html-to-image';
 import ReactFlow, {
-  Panel,
-  Background,
-  Controls,
-  ControlButton,
-  MiniMap,
-  ControlButton,
-  useNodesState,
-  useEdgesState,
-  ConnectionLineType,
-  MarkerType,
-  Handle,
-  Position,
-  NodeProps
+    Panel,
+    Background,
+    Controls,
+    ControlButton,
+    MiniMap,
+    useNodesState,
+    useEdgesState,
+    useReactFlow,
+    ConnectionLineType,
+    MarkerType,
+    NodeProps
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
-import { PipelineData } from '../shared/types';
+import { PipelineData, PipelinePatternType, SelectionState } from '../shared/types';
 import { EmptyState } from './EmptyState';
+import { AnnotatorButton } from './components/AnnotatorButton';
+import { PatternSelector } from './components/PatternSelector';
+import { AnnotationLayer } from './components/AnnotationLayer';
+import { SelectionBox } from './components/SelectionBox';
+import { TopPanel } from './components/TopPanel';
+import { PipelineNodeItem } from './components/PipelineNodeItem';
+import { SelectionBoxHandler } from './components/SelectionBoxHandler';
+import { PipelineSelectorPanel } from './components/PipelineSelectorPanel';
+import { createInitialSelectionState } from '../shared/annotationUtils';
+import { SelectionManager } from '../shared/SelectionManager';
+import { AnnotationStore } from '../shared/AnnotationStore';
 import {
-  Database,
-  Sparkle,
-  Workflow,
-  Bot,
-  CheckCircle,
-  XCircle,
-  Clock,
-  GitBranch,
-  Terminal,
-  Camera,
-  ArrowRightLeft,
-  ArrowUpDown
+    Camera,
+    ArrowRightLeft,
+    ArrowUpDown
 } from 'lucide-react';
-import { SiGithub, SiGitlab } from 'react-icons/si';
 
 const nodeWidth = 220;
 const nodeHeight = 80;
 
-// --- Components ---
-
-const TopPanel = ({ onCategorySelect, activeCategory }) => {
-  const [activeContext, setActiveContext] = useState<string>(activeCategory || 'cicd');
-
-  // Update local state when activeCategory prop changes
-  React.useEffect(() => {
-    if (activeCategory && activeCategory !== activeContext) {
-      setActiveContext(activeCategory);
-    }
-  }, [activeCategory, activeContext]);
-
-  const contexts = [
-    { id: 'cicd', icon: Workflow, label: 'CI/CD' },
-    { id: 'data-processing', icon: Database, label: 'Data Processing' },
-    { id: 'ai-agent', icon: Sparkle, label: 'AI Agent' },
-    { id: 'rpa', icon: Bot, label: 'Automation' },
-  ];
-
-  return (
-    <div className="top-panel">
-      {contexts.map((ctx, index) => {
-        const Icon = ctx.icon;
-        const isActive = activeContext === ctx.id;
-        const isLast = index === contexts.length - 1;
-        return (
-          <React.Fragment key={ctx.id}>
-            <button
-              className={`context-tab ${isActive ? 'active' : ''}`}
-              onClick={() => {
-                setActiveContext(ctx.id);
-                onCategorySelect(ctx.id);
-              }}
-            >
-              <Icon size={16} />
-              <span className="tab-label">{ctx.label}</span>
-            </button>
-            {!isLast && <div className="separator">|</div>}
-          </React.Fragment>
-        );
-      })}
-      <style>{`
-        .top-panel {
-          position: absolute;
-          top: 12px;
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          align-items: center;
-          background: rgba(30, 32, 49, 0.9);
-          backdrop-filter: blur(10px);
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          z-index: 100;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-          padding: 2px;
-        }
-        .context-tab {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
-          background: transparent;
-          border: none;
-          color: rgba(255, 255, 255, 0.6);
-          cursor: pointer;
-          transition: all 0.2s ease;
-          font-size: 12px;
-          font-weight: 500;
-          white-space: nowrap;
-          position: relative;
-          border-radius: 6px;
-        }
-        .context-tab:hover:not(.active) {
-          color: rgba(255, 255, 255, 0.8);
-          background: rgba(255, 255, 255, 0.05);
-        }
-        .context-tab.active {
-          color: white;
-          background: #f20d63;
-          box-shadow: 0 2px 8px rgba(242, 13, 99, 0.4);
-        }
-        .tab-label {
-          font-size: 12px;
-          font-weight: 500;
-        }
-        .separator {
-          color: rgba(255, 255, 255, 0.3);
-          font-size: 14px;
-          font-weight: 300;
-          margin: 0 2px;
-          user-select: none;
-        }
-      `}</style>
-    </div>
-  );
-};
-
-const PipelineNodeItem = ({ data }: NodeProps) => {
-  const { layoutDirection = 'TB' } = data;
-
-  const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
-  const sourcePosition = layoutDirection === 'LR' ? Position.Right : Position.Bottom;
-  // Determine icon based on status or type if available
-  const getStatusIcon = () => {
-    switch (data.status) {
-      case 'success': return <CheckCircle size={16} color="#4ade80" />;
-      case 'failed': return <XCircle size={16} color="#ef4444" />;
-      case 'running': return <Clock size={16} color="#3b82f6" />;
-      default: return <Terminal size={16} color="#a0aec0" />;
-    }
-  };
-
-  return (
-    <div className="pipeline-node-item">
-      <Handle type="target" position={targetPosition} className="handle" />
-
-      <div className="node-header">
-        <div className="node-icon">
-          {getStatusIcon()}
-        </div>
-        <div className="node-title">{data.label}</div>
-      </div>
-
-      <div className="node-body">
-        {data.framework && (
-          <div className="node-meta">
-            {(() => {
-              const framework = data.framework.toLowerCase();
-              if (framework.includes('github')) {
-                return <SiGithub size={12} style={{ marginRight: 4 }} />;
-              }
-              if (framework.includes('gitlab')) {
-                return <SiGitlab size={12} style={{ marginRight: 4 }} />;
-              }
-              return <GitBranch size={12} style={{ marginRight: 4 }} />;
-            })()}
-            <span>{data.framework}</span>
-          </div>
-        )}
-        <div className="node-status">
-          {data.status || 'Idle'}
-        </div>
-      </div>
-
-      <Handle type="source" position={sourcePosition} className="handle" />
-
-      <style>{`
-        .pipeline-node-item {
-          background: var(--color-bg-primary);
-          color: var(--color-text-primary);
-          border: 1px solid var(--color-border);
-          border-radius: 12px;
-          padding: 12px;
-          width: 200px;
-          box-shadow: 0 4px 6px var(--color-shadow);
-          transition: all 0.3s ease;
-        }
-        .pipeline-node-item:hover {
-          border-color: #f20d63;
-          box-shadow: 0 0 15px rgba(242, 13, 99, 0.3);
-          transform: translateY(-2px);
-        }
-        .node-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 8px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-          padding-bottom: 8px;
-        }
-        .node-title {
-          font-weight: 600;
-          font-size: 14px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .node-body {
-          font-size: 11px;
-          color: #a0aec0;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .node-meta {
-          display: flex;
-          align-items: center;
-        }
-        .handle {
-          background: #f20d63 !important;
-          width: 8px !important;
-          height: 8px !important;
-          border: 2px solid var(--color-bg-primary) !important;
-        }
-      `}</style>
-    </div>
-  );
-};
-
 // --- Layout Logic ---
 
 const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
-  if (nodes.length === 0) return { nodes: [], edges: [] };
+    if (nodes.length === 0) return { nodes: [], edges: [] };
 
-  const dagreGraph = new dagre.graphlib.Graph();
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction });
+    const dagreGraph = new dagre.graphlib.Graph();
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
+    dagreGraph.setGraph({ rankdir: direction });
 
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
-  });
+    nodes.forEach((node) => {
+        dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    });
 
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
+    edges.forEach((edge) => {
+        dagreGraph.setEdge(edge.source, edge.target);
+    });
 
-  dagre.layout(dagreGraph);
+    dagre.layout(dagreGraph);
 
-  const layoutedNodes = nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    return {
-      ...node,
-      position: {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
-      },
-    };
-  });
+    const layoutedNodes = nodes.map((node) => {
+        const nodeWithPosition = dagreGraph.node(node.id);
+        return {
+            ...node,
+            position: {
+                x: nodeWithPosition.x - nodeWidth / 2,
+                y: nodeWithPosition.y - nodeHeight / 2,
+            },
+        };
+    });
 
-  return { nodes: layoutedNodes, edges };
+    return { nodes: layoutedNodes, edges };
 };
 
 // --- Main Canvas ---
 
-const PipelineSelectorPanel = ({ availablePipelines, currentPipeline, onPipelineSelect }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const dropdownRef = React.useRef(null);
-  
-  if (!availablePipelines || availablePipelines.length <= 1) {
-    return null;
-  }
-
-  // Close dropdown when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const currentFileName = currentPipeline ? currentPipeline.split('/').pop() : '';
-
-  return (
-    <Panel position="bottom-right" style={{ marginBottom: '90px', marginRight: '10px' }}>
-      <div className="pipeline-selector" ref={dropdownRef}>
-        <GitBranch size={14} />
-        <div className="custom-select" onClick={() => setIsOpen(!isOpen)}>
-          <span className="selected-value">{currentFileName}</span>
-          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>
-            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        {isOpen && (
-          <div className="dropdown-options">
-            {availablePipelines.map((p) => (
-              <div
-                key={p}
-                className={`dropdown-option ${p === currentPipeline ? 'selected' : ''}`}
-                onClick={() => {
-                  onPipelineSelect(p);
-                  setIsOpen(false);
-                }}
-              >
-                {p.split('/').pop()}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <style>{`
-        .pipeline-selector {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          background: var(--color-bg-primary);
-          border-radius: 8px;
-          border: 1px solid var(--color-border);
-          box-shadow: 0 2px 8px var(--color-shadow);
-          color: var(--color-text-primary);
-          min-width: 160px;
-          position: relative;
-        }
-        .custom-select {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex: 1;
-          cursor: pointer;
-          gap: 8px;
-        }
-        .selected-value {
-          font-size: 13px;
-          font-weight: 400;
-          color: var(--color-text-primary);
-          flex: 1;
-          text-align: left;
-        }
-        .dropdown-arrow {
-          color: var(--color-text-primary);
-          opacity: 0.6;
-          transition: transform 0.2s ease, opacity 0.2s ease;
-        }
-        .dropdown-arrow.open {
-          transform: rotate(180deg);
-          opacity: 1;
-        }
-        .dropdown-options {
-          position: absolute;
-          bottom: 100%;
-          left: 0;
-          right: 0;
-          background: var(--color-bg-primary);
-          border: 1px solid var(--color-border);
-          border-radius: 8px;
-          box-shadow: 0 4px 12px var(--color-shadow);
-          margin-bottom: 4px;
-          z-index: 1000;
-          max-height: 200px;
-          overflow-y: auto;
-        }
-        .dropdown-option {
-          padding: 8px 12px;
-          font-size: 13px;
-          color: var(--color-text-primary);
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-        }
-        .dropdown-option:hover {
-          background: var(--color-bg-hover);
-        }
-        .dropdown-option.selected {
-          background: #f20d63;
-          color: white;
-        }
-        .dropdown-option:first-child {
-          border-top-left-radius: 7px;
-          border-top-right-radius: 7px;
-        }
-        .dropdown-option:last-child {
-          border-bottom-left-radius: 7px;
-          border-bottom-right-radius: 7px;
-        }
-        .pipeline-selector:hover {
-          border-color: #f20d63;
-          box-shadow: 0 0 12px rgba(242, 13, 99, 0.25);
-        }
-        .pipeline-selector:hover .dropdown-arrow {
-          opacity: 1;
-        }
-      `}</style>
-    </Panel>
-  );
-};
-
 interface PipelineCanvasProps {
-  data: PipelineData;
-  availablePipelines: string[];
-  onPipelineSelect: (filePath: string) => void;
-  onCategorySelect: (category: string) => void;
+    data: PipelineData;
+    availablePipelines: string[];
+    onPipelineSelect: (filePath: string) => void;
+    onCategorySelect: (category: string) => void;
 }
 
 export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availablePipelines, onPipelineSelect, onCategorySelect }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
-  const [activeCategory, setActiveCategory] = useState<string>('cicd');
+    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
+    const [activeCategory, setActiveCategory] = useState<string>('cicd');
 
-  const handleCategorySelect = (category: string) => {
-    setActiveCategory(category);
-    onCategorySelect(category);
-  };
+    // Selection management using SelectionManager
+    const [selectionManager] = useState(() => new SelectionManager());
+    const [selectionState, setSelectionState] = useState<SelectionState>(createInitialSelectionState());
+    const [showPatternSelector, setShowPatternSelector] = useState(false);
 
-  const toggleLayoutDirection = useCallback(() => {
-    setLayoutDirection((prevDirection) => (prevDirection === 'TB' ? 'LR' : 'TB'));
-  }, []);
+    // Selection box state for drag selection
+    const [selectionBox, setSelectionBox] = useState<{
+        startX: number;
+        startY: number;
+        endX: number;
+        endY: number;
+    } | null>(null);
 
-  const nodeTypes = useMemo(
-    () => ({
-      custom: (props) => (
-        <PipelineNodeItem {...props} data={{ ...props.data, layoutDirection }} />
-      ),
-    }),
-    [layoutDirection]
-  );
+    // Annotation management using AnnotationStore
+    const [annotationStore] = useState(() => new AnnotationStore());
+    const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{
+        type: 'success' | 'error';
+        message: string;
+    } | null>(null);
 
-  const handleExportPNG = () => {
-    const reactFlowElement = document.querySelector('.react-flow');
-    if (reactFlowElement) {
-      const computedStyle = getComputedStyle(reactFlowElement);
-      const backgroundColor = computedStyle.backgroundColor;
-      toPng(reactFlowElement as HTMLElement, {
-        backgroundColor: backgroundColor || '#181B28',
-        width: reactFlowElement.scrollWidth,
-        height: reactFlowElement.scrollHeight,
-      }).then((dataUrl) => {
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = 'pipeline.png';
-        a.click();
-      });
-    }
-  };
+    const handleCategorySelect = (category: string) => {
+        setActiveCategory(category);
+        onCategorySelect(category);
+    };
 
-  const nodeColor = useCallback(() => '#f20d63', []);
+    // Subscribe to selection manager changes
+    useEffect(() => {
+        const unsubscribe = selectionManager.subscribe((selectedNodeIds, isSelectionMode) => {
+            setSelectionState(prev => ({
+                ...prev,
+                selectedNodeIds,
+                isSelectionMode
+            }));
+        });
 
-  // Update activeCategory when data.category changes (from extension)
-  useEffect(() => {
-    if (data.category && data.category !== activeCategory) {
-      setActiveCategory(data.category);
-    }
-  }, [data.category, activeCategory]);
+        return unsubscribe;
+    }, [selectionManager]);
 
-  useEffect(() => {
-    const initialNodes = data.nodes.map(n => ({
-      id: n.id,
-      type: 'custom', // Use our custom node
-      data: {
-        label: n.label,
-        status: n.status,
-        framework: data.framework // Pass framework to node
-      },
-      position: { x: 0, y: 0 },
-    }));
+    // Subscribe to annotation store changes
+    useEffect(() => {
+        const unsubscribe = annotationStore.subscribe((annotationState) => {
+            // Update any UI that depends on annotation state
+            console.log('Annotation state updated:', annotationState.annotations.size, 'annotations');
+        });
 
-    const initialEdges = data.edges.map(e => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      animated: true,
-      style: { stroke: '#474c60', strokeWidth: 2 },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#474c60',
-        width: 12,
-        height: 12,
-      },
-    }));
+        return unsubscribe;
+    }, [annotationStore]);
 
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-      initialNodes,
-      initialEdges,
-      layoutDirection
-    );
+    // Update selection manager when nodes change
+    useEffect(() => {
+        if (data.nodes.length > 0) {
+            selectionManager.setAvailableNodes(data.nodes);
+        }
+    }, [data.nodes, selectionManager]);
 
-    setNodes([...layoutedNodes]);
-    setEdges([...layoutedEdges]);
-  }, [data, setNodes, setEdges, layoutDirection]);
+    // Annotation mode handlers
+    const handleToggleSelectionMode = () => {
+        if (selectionState.isSelectionMode) {
+            selectionManager.deactivateSelectionMode();
+            setShowPatternSelector(false);
+            setEditingAnnotationId(null);
+        } else {
+            selectionManager.activateSelectionMode();
+            // Show PatternSelector immediately when entering annotation mode
+            setShowPatternSelector(true);
+        }
+    };
 
-  // Handle empty state
-  if (data.nodes.length === 0) {
-    // If category and tools are provided, it means a scan was completed with no results
-    if (data.category && data.tools) {
-      return (
-        <div style={{
-          width: '100%',
-          height: '100vh',
-          background: 'var(--color-bg-tertiary)',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
-          <EmptyState category={data.category} tools={data.tools} />
-        </div>
-      );
-    }
+    const handleNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+        // Selection is now handled exclusively by the selection box (rectangle selection)
+        // Individual node clicking in selection mode won't toggle selection anymore
+        if (selectionState.isSelectionMode) {
+            event.stopPropagation();
+        }
+    }, [selectionState.isSelectionMode]);
 
-    // Default "waiting" screen on initial load
-    return (
-      <div style={{
-        width: '100%',
-        height: '100vh',
-        background: 'var(--color-bg-tertiary)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--color-text-primary)'
-      }}>
-        <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
-        <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
-        <div style={{ marginTop: '0.5rem', color: '#666' }}>
-          Waiting for pipeline data...
-        </div>
-      </div>
-    );
-  }
+    const handlePatternSelect = (patternType: PipelinePatternType, patternSubtype: string) => {
+        if (editingAnnotationId) {
+            try {
+                annotationStore.updateAnnotation(editingAnnotationId, {
+                    patternType,
+                    patternSubtype,
+                    color: (annotationStore as any).getColorForPattern(patternType, patternSubtype) // Accessing private for quick fix or use a shared util if available
+                });
 
-  return (
-    <div style={{ width: '100%', height: '100vh', background: 'var(--color-bg-tertiary)' }}>
-      <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
+                setNotification({
+                    type: 'success',
+                    message: `Updated annotation pattern to ${patternType}`
+                });
+                setTimeout(() => setNotification(null), 3000);
 
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeMouseEnter={(_, node) => {
-          setEdges((eds) => eds.map(e => {
-            if (e.source === node.id || e.target === node.id) {
-              const currentMarker = typeof e.markerEnd === 'object' ? e.markerEnd : { type: MarkerType.ArrowClosed };
-              return {
-                ...e,
-                style: { stroke: '#f20d63', strokeWidth: 3, filter: 'drop-shadow(0 0 4px #f20d63)' },
-                animated: true,
-                markerEnd: { ...currentMarker, color: '#f20d63' }
-              };
+                setEditingAnnotationId(null);
+                setShowPatternSelector(false);
+                selectionManager.deactivateSelectionMode();
+            } catch (error) {
+                console.error('Failed to update annotation:', error);
             }
-            return e;
-          }));
-        }}
-        onNodeMouseLeave={() => {
-          setEdges((eds) => eds.map(e => {
-            const currentMarker = typeof e.markerEnd === 'object' ? e.markerEnd : { type: MarkerType.ArrowClosed };
-            return {
-              ...e,
-              style: { stroke: '#474c60', strokeWidth: 2 },
-              animated: true,
-              markerEnd: { ...currentMarker, color: '#474c60' }
-            };
-          }));
-        }}
-        connectionLineType={ConnectionLineType.SmoothStep}
-        fitView
-      >
-        <Background color="var(--color-bg-secondary)" gap={20} size={1} />
-        <Controls>
-          <ControlButton onClick={toggleLayoutDirection} title="Toggle Orientation">
-            {layoutDirection === 'TB' ? <ArrowRightLeft size={16} /> : <ArrowUpDown size={16} />}
-          </ControlButton>
-          <ControlButton onClick={handleExportPNG} title="Export as PNG">
-            <Camera size={16} />
-          </ControlButton>
-        </Controls>
-        <MiniMap 
-          pannable 
-          zoomable 
-          nodeStrokeWidth={3}
-          nodeColor={nodeColor}
-          maskColor="rgba(24, 27, 40, 0.6)"
-          style={{ width: 100, height: 70 }}
-        />
-        <PipelineSelectorPanel
-          availablePipelines={availablePipelines}
-          onPipelineSelect={onPipelineSelect}
-          currentPipeline={data.filePath}
-        />
-      </ReactFlow>
+            return;
+        }
 
-      <style>{`
+        if (selectionState.selectedNodeIds.length > 0) {
+            try {
+                // Create the annotation using AnnotationStore
+                const annotationId = annotationStore.createAnnotation(
+                    selectionState.selectedNodeIds,
+                    patternType,
+                    patternSubtype
+                );
+
+                console.log('Created annotation:', annotationId, {
+                    nodeIds: selectionState.selectedNodeIds,
+                    patternType,
+                    patternSubtype
+                });
+
+                // Show success notification
+                setNotification({
+                    type: 'success',
+                    message: `Created ${patternType} annotation with ${selectionState.selectedNodeIds.length} nodes`
+                });
+
+                // Clear notification after 3 seconds
+                setTimeout(() => setNotification(null), 3000);
+
+            } catch (error) {
+                console.error('Failed to create annotation:', error);
+
+                // Show error notification
+                setNotification({
+                    type: 'error',
+                    message: `Failed to create annotation: ${error instanceof Error ? error.message : 'Unknown error'}`
+                });
+
+                // Clear notification after 5 seconds
+                setTimeout(() => setNotification(null), 5000);
+            }
+
+            // Reset selection state through SelectionManager
+            selectionManager.deactivateSelectionMode();
+            setShowPatternSelector(false);
+        }
+    };
+
+    const handleDeleteAnnotation = (id: string) => {
+        if (annotationStore.deleteAnnotation(id)) {
+            setNotification({
+                type: 'success',
+                message: 'Annotation deleted'
+            });
+            setTimeout(() => setNotification(null), 2000);
+        }
+    };
+
+    const handleEditAnnotation = (id: string) => {
+        const annotation = annotationStore.getAnnotation(id);
+        if (annotation) {
+            setEditingAnnotationId(id);
+            selectionManager.activateSelectionMode();
+            selectionManager.selectNodes(annotation.nodeIds);
+            setShowPatternSelector(true);
+        }
+    };
+
+    // Keep PatternSelector visible when in selection mode (showPatternSelector is now controlled by handleToggleSelectionMode)
+    // Remove the old effect that hid it when no nodes were selected
+
+    // Validate annotation creation
+    const canCreateAnnotation = useMemo(() => {
+        return selectionState.isSelectionMode &&
+            selectionState.selectedNodeIds.length > 0 &&
+            selectionState.selectedNodeIds.every(nodeId =>
+                data.nodes.some(node => node.id === nodeId)
+            );
+    }, [selectionState.isSelectionMode, selectionState.selectedNodeIds, data.nodes]);
+
+    // Handle canvas click to clear selection when not clicking on nodes
+    const handleCanvasClick = useCallback((event: React.MouseEvent) => {
+        if (selectionState.isSelectionMode && event.target === event.currentTarget) {
+            selectionManager.clearSelection();
+        }
+    }, [selectionState.isSelectionMode, selectionManager]);
+
+
+    // Keyboard shortcuts for selection operations
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (!selectionState.isSelectionMode) return;
+
+            switch (event.key) {
+                case 'Escape':
+                    event.preventDefault();
+                    selectionManager.deactivateSelectionMode();
+                    break;
+                case 'a':
+                case 'A':
+                    if (event.ctrlKey || event.metaKey) {
+                        event.preventDefault();
+                        try {
+                            selectionManager.selectAllNodes();
+                        } catch (error) {
+                            console.error('Error selecting all nodes:', error);
+                        }
+                    }
+                    break;
+                case 'Delete':
+                case 'Backspace':
+                    event.preventDefault();
+                    selectionManager.clearSelection();
+                    break;
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [selectionState.isSelectionMode, selectionManager]);
+
+    const toggleLayoutDirection = useCallback(() => {
+        setLayoutDirection((prevDirection) => (prevDirection === 'TB' ? 'LR' : 'TB'));
+    }, []);
+
+    const nodeTypes = useMemo(
+        () => ({
+            custom: (props: NodeProps) => (
+                <PipelineNodeItem
+                    {...props}
+                    data={{
+                        ...props.data,
+                        layoutDirection,
+                        isSelectionMode: selectionState.isSelectionMode,
+                        isSelected: selectionState.selectedNodeIds.includes(props.id)
+                    }}
+                />
+            ),
+        }),
+        [layoutDirection, selectionState.isSelectionMode, selectionState.selectedNodeIds]
+    );
+
+    const handleExportPNG = () => {
+        const reactFlowElement = document.querySelector('.react-flow');
+        if (reactFlowElement) {
+            const computedStyle = getComputedStyle(reactFlowElement);
+            const backgroundColor = computedStyle.backgroundColor;
+            toPng(reactFlowElement as HTMLElement, {
+                backgroundColor: backgroundColor || '#181B28',
+                width: reactFlowElement.scrollWidth,
+                height: reactFlowElement.scrollHeight,
+            }).then((dataUrl) => {
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = 'pipeline.png';
+                a.click();
+            });
+        }
+    };
+
+    const nodeColor = useCallback(() => '#f20d63', []);
+
+    // Update activeCategory when data.category changes (from extension)
+    useEffect(() => {
+        if (data.category && data.category !== activeCategory) {
+            setActiveCategory(data.category);
+        }
+    }, [data.category, activeCategory]);
+
+    useEffect(() => {
+        const initialNodes = data.nodes.map(n => ({
+            id: n.id,
+            type: 'custom', // Use our custom node
+            data: {
+                label: n.label,
+                status: n.status,
+                framework: data.framework // Pass framework to node
+            },
+            position: { x: 0, y: 0 },
+        }));
+
+        const initialEdges = data.edges.map(e => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            animated: true,
+            style: { stroke: '#474c60', strokeWidth: 2 },
+            markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#474c60',
+                width: 12,
+                height: 12,
+            },
+        }));
+
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+            initialNodes,
+            initialEdges,
+            layoutDirection
+        );
+
+        setNodes([...layoutedNodes]);
+        setEdges([...layoutedEdges]);
+    }, [data, setNodes, setEdges, layoutDirection]);
+
+    // Handle empty state
+    if (data.nodes.length === 0) {
+        // If category and tools are provided, it means a scan was completed with no results
+        if (data.category && data.tools) {
+            return (
+                <div style={{
+                    width: '100%',
+                    height: '100vh',
+                    background: 'var(--color-bg-tertiary)',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
+                    <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
+                    <EmptyState category={data.category} tools={data.tools} />
+                </div>
+            );
+        }
+
+        // Default "waiting" screen on initial load
+        return (
+            <div style={{
+                width: '100%',
+                height: '100vh',
+                background: 'var(--color-bg-tertiary)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-text-primary)'
+            }}>
+                <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
+                <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
+                <div style={{ marginTop: '0.5rem', color: '#666' }}>
+                    Waiting for pipeline data...
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ width: '100%', height: '100vh', background: 'var(--color-bg-tertiary)' }}>
+            <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
+
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeClick={handleNodeClick}
+                onPaneClick={handleCanvasClick}
+                panOnDrag={!selectionState.isSelectionMode}
+                selectionMode={null as any} // Disable default selection box to use our custom one
+                onNodeMouseEnter={(_, node) => {
+                    if (!selectionState.isSelectionMode) {
+                        setEdges((eds) => eds.map(e => {
+                            if (e.source === node.id || e.target === node.id) {
+                                const currentMarker = typeof e.markerEnd === 'object' ? e.markerEnd : { type: MarkerType.ArrowClosed };
+                                return {
+                                    ...e,
+                                    style: { stroke: '#f20d63', strokeWidth: 3, filter: 'drop-shadow(0 0 4px #f20d63)' },
+                                    animated: true,
+                                    markerEnd: { ...currentMarker, color: '#f20d63' }
+                                };
+                            }
+                            return e;
+                        }));
+                    }
+                }}
+                onNodeMouseLeave={() => {
+                    if (!selectionState.isSelectionMode) {
+                        setEdges((eds) => eds.map(e => {
+                            const currentMarker = typeof e.markerEnd === 'object' ? e.markerEnd : { type: MarkerType.ArrowClosed };
+                            return {
+                                ...e,
+                                style: { stroke: '#474c60', strokeWidth: 2 },
+                                animated: true,
+                                markerEnd: { ...currentMarker, color: '#474c60' }
+                            };
+                        }));
+                    }
+                }}
+                connectionLineType={ConnectionLineType.SmoothStep}
+                fitView
+            >
+                <Background color="var(--color-bg-secondary)" gap={20} size={1} />
+                <AnnotationLayer
+                    annotations={annotationStore.getAllAnnotations()}
+                    isDarkTheme={true}
+                    showLabels={true}
+                    animationEnabled={true}
+                    onDeleteAnnotation={handleDeleteAnnotation}
+                    onEditAnnotation={handleEditAnnotation}
+                />
+                {selectionState.isSelectionMode && (
+                    <>
+                        <SelectionBoxHandler
+                            selectionManager={selectionManager}
+                            selectionState={selectionState}
+                            onSelectionBoxChange={setSelectionBox}
+                            onNodesSelected={(nodeIds) => {
+                                try {
+                                    selectionManager.selectNodes(nodeIds);
+                                } catch (error) {
+                                    console.error('Error selecting nodes in area:', error);
+                                }
+                            }}
+                        />
+                        {selectionBox && <SelectionBox selectionBox={selectionBox} />}
+                    </>
+                )}
+                <Controls>
+                    <AnnotatorButton
+                        isSelectionMode={selectionState.isSelectionMode}
+                        onToggleSelectionMode={handleToggleSelectionMode}
+                    />
+                    <ControlButton onClick={toggleLayoutDirection} title="Toggle Orientation">
+                        {layoutDirection === 'TB' ? <ArrowRightLeft size={16} /> : <ArrowUpDown size={16} />}
+                    </ControlButton>
+                    <ControlButton onClick={handleExportPNG} title="Export as PNG">
+                        <Camera size={16} />
+                    </ControlButton>
+                </Controls>
+                <MiniMap
+                    pannable
+                    zoomable
+                    nodeStrokeWidth={3}
+                    nodeColor={nodeColor}
+                    maskColor="rgba(24, 27, 40, 0.6)"
+                    style={{ width: 100, height: 70 }}
+                />
+                <PipelineSelectorPanel
+                    availablePipelines={availablePipelines}
+                    onPipelineSelect={onPipelineSelect}
+                    currentPipeline={data.filePath}
+                />
+
+                {showPatternSelector && selectionState.isSelectionMode && (
+                    <Panel position="bottom-left" style={{ marginBottom: '60px', marginLeft: '60px' }}>
+                        <div className="pattern-selector-panel">
+                            <div className="panel-header">
+                                <h3>{editingAnnotationId ? 'Modify Annotation' : 'Create Annotation'}</h3>
+                                <p>
+                                    {selectionState.selectedNodeIds.length > 0
+                                        ? `Choose a pattern for the selected nodes (${selectionState.selectedNodeIds.length} selected)`
+                                        : 'Select nodes by clicking or drawing a rectangle'}
+                                </p>
+                                {selectionState.selectedNodeIds.length > 0 && annotationStore.areNodesAnnotated(selectionState.selectedNodeIds) && (
+                                    <div className="warning-message">
+                                        ⚠️ {selectionState.selectedNodeIds.length === 1 ? 'This node is' : 'Some nodes are'} already annotated
+                                    </div>
+                                )}
+                            </div>
+                            <PatternSelector
+                                onPatternSelect={handlePatternSelect}
+                                disabled={false}
+                            />
+                            <div className="panel-actions">
+                                <button
+                                    className="cancel-button"
+                                    onClick={() => {
+                                        selectionManager.deactivateSelectionMode();
+                                        setShowPatternSelector(false);
+                                        setEditingAnnotationId(null);
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                        <style>{`
+              .pattern-selector-panel {
+                background: var(--color-bg-primary);
+                border: 1px solid var(--color-border);
+                border-radius: 8px;
+                padding: 16px;
+                box-shadow: 0 4px 12px var(--color-shadow);
+                min-width: 280px;
+                max-width: 320px;
+              }
+              
+              .panel-header {
+                margin-bottom: 12px;
+              }
+              
+              .panel-header h3 {
+                margin: 0 0 4px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--color-text-primary);
+              }
+              
+              .panel-header p {
+                margin: 0 0 8px 0;
+                font-size: 12px;
+                color: var(--color-text-secondary);
+              }
+              
+              .warning-message {
+                font-size: 11px;
+                color: #f59e0b;
+                background: rgba(245, 158, 11, 0.1);
+                padding: 6px 8px;
+                border-radius: 4px;
+                margin-bottom: 8px;
+              }
+              
+              .panel-actions {
+                margin-top: 12px;
+                display: flex;
+                justify-content: flex-end;
+              }
+              
+              .cancel-button {
+                background: transparent;
+                border: 1px solid var(--color-border);
+                color: var(--color-text-secondary);
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+              }
+              
+              .cancel-button:hover {
+                background: var(--color-bg-hover);
+                color: var(--color-text-primary);
+              }
+            `}</style>
+                    </Panel>
+                )}
+
+                {notification && (
+                    <Panel position="top-right" style={{ marginTop: '60px', marginRight: '20px' }}>
+                        <div className={`notification ${notification.type}`}>
+                            <div className="notification-content">
+                                {notification.type === 'success' ? '✅' : '❌'} {notification.message}
+                            </div>
+                            <button
+                                className="notification-close"
+                                onClick={() => setNotification(null)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <style>{`
+              .notification {
+                background: var(--color-bg-primary);
+                border: 1px solid var(--color-border);
+                border-radius: 8px;
+                padding: 12px;
+                box-shadow: 0 4px 12px var(--color-shadow);
+                min-width: 250px;
+                max-width: 350px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+              }
+              
+              .notification.success {
+                border-left: 4px solid #10b981;
+              }
+              
+              .notification.error {
+                border-left: 4px solid #ef4444;
+              }
+              
+              .notification-content {
+                flex: 1;
+                font-size: 12px;
+                color: var(--color-text-primary);
+                line-height: 1.4;
+              }
+              
+              .notification-close {
+                background: transparent;
+                border: none;
+                color: var(--color-text-secondary);
+                font-size: 16px;
+                cursor: pointer;
+                padding: 0;
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 2px;
+                transition: all 0.2s ease;
+              }
+              
+              .notification-close:hover {
+                background: var(--color-bg-hover);
+                color: var(--color-text-primary);
+              }
+            `}</style>
+                    </Panel>
+                )}
+
+                {selectionState.isSelectionMode && (
+                    <Panel position="top-left" style={{ marginTop: '60px', marginLeft: '20px' }}>
+                        <div className="selection-status-panel">
+                            <div className="selection-status">
+                                <div className="status-indicator active"></div>
+                                <span className="status-text">Selection Mode</span>
+                            </div>
+                            <div className="selection-count">
+                                {selectionState.selectedNodeIds.length} node{selectionState.selectedNodeIds.length !== 1 ? 's' : ''} selected
+                            </div>
+                            <div className="annotation-info">
+                                {annotationStore.getAllAnnotations().length} annotation{annotationStore.getAllAnnotations().length !== 1 ? 's' : ''} total
+                            </div>
+                            <div className="selection-help">
+                                <div>Click nodes to select • Drag to select multiple</div>
+                                <div>Ctrl+A to select all • Esc to exit • Del to clear</div>
+                                {selectionState.selectedNodeIds.length > 0 && canCreateAnnotation && (
+                                    <div className="create-hint">Select pattern below to create annotation</div>
+                                )}
+                            </div>
+                        </div>
+                        <style>{`
+              .selection-status-panel {
+                background: var(--color-bg-primary);
+                border: 1px solid var(--color-border);
+                border-radius: 8px;
+                padding: 12px;
+                box-shadow: 0 4px 12px var(--color-shadow);
+                min-width: 200px;
+              }
+              
+              .selection-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 8px;
+              }
+              
+              .status-indicator {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #f20d63;
+                animation: statusPulse 2s infinite;
+              }
+              
+              @keyframes statusPulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+              }
+              
+              .status-text {
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--color-text-primary);
+              }
+              
+              .selection-count {
+                font-size: 11px;
+                color: var(--color-text-secondary);
+                margin-bottom: 4px;
+              }
+              
+              .annotation-info {
+                font-size: 11px;
+                color: var(--color-text-secondary);
+                margin-bottom: 8px;
+                font-style: italic;
+              }
+              
+              .selection-help {
+                font-size: 10px;
+                color: var(--color-text-secondary);
+                line-height: 1.3;
+              }
+              
+              .create-hint {
+                color: #f20d63 !important;
+                font-weight: 500;
+                margin-top: 4px;
+              }
+            `}</style>
+                    </Panel>
+                )}
+            </ReactFlow>
+
+            <style>{`
         .react-flow__edge.active .react-flow__edge-path {
           stroke: #f20d63 !important;
           stroke-width: 3;
         }
+
+        .react-flow__pane {
+          cursor: ${selectionState.isSelectionMode ? 'crosshair' : 'grab'} !important;
+        }
+
+        .react-flow__pane:active {
+          cursor: ${selectionState.isSelectionMode ? 'crosshair' : 'grabbing'} !important;
+        }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 };
