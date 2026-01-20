@@ -77,9 +77,10 @@ interface PipelineCanvasProps {
     availablePipelines: string[];
     onPipelineSelect: (filePath: string) => void;
     onCategorySelect: (category: string) => void;
+    onNotify: (type: 'info' | 'error' | 'warning', message: string) => void;
 }
 
-export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availablePipelines, onPipelineSelect, onCategorySelect }) => {
+export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availablePipelines, onPipelineSelect, onCategorySelect, onNotify }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
@@ -89,6 +90,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
     const [selectionManager] = useState(() => new SelectionManager());
     const [selectionState, setSelectionState] = useState<SelectionState>(createInitialSelectionState());
     const [showPatternSelector, setShowPatternSelector] = useState(false);
+    const [selectorPosition, setSelectorPosition] = useState<{ x: number, y: number } | null>(null);
 
     // Selection box state for drag selection
     const [selectionBox, setSelectionBox] = useState<{
@@ -101,10 +103,6 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
     // Annotation management using AnnotationStore
     const [annotationStore] = useState(() => new AnnotationStore());
     const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
-    const [notification, setNotification] = useState<{
-        type: 'success' | 'error';
-        message: string;
-    } | null>(null);
 
     const handleCategorySelect = (category: string) => {
         setActiveCategory(category);
@@ -134,6 +132,15 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
         return unsubscribe;
     }, [annotationStore]);
 
+    useEffect(() => {
+        if (selectionState.isSelectionMode && selectionState.selectedNodeIds.length > 0) {
+            setShowPatternSelector(true);
+        } else {
+            setShowPatternSelector(false);
+            setSelectorPosition(null);
+        }
+    }, [selectionState.isSelectionMode, selectionState.selectedNodeIds]);
+
     // Update selection manager when nodes change
     useEffect(() => {
         if (data.nodes.length > 0) {
@@ -145,12 +152,9 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
     const handleToggleSelectionMode = () => {
         if (selectionState.isSelectionMode) {
             selectionManager.deactivateSelectionMode();
-            setShowPatternSelector(false);
             setEditingAnnotationId(null);
         } else {
             selectionManager.activateSelectionMode();
-            // Show PatternSelector immediately when entering annotation mode
-            setShowPatternSelector(true);
         }
     };
 
@@ -171,14 +175,9 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                     color: (annotationStore as any).getColorForPattern(patternType, patternSubtype) // Accessing private for quick fix or use a shared util if available
                 });
 
-                setNotification({
-                    type: 'success',
-                    message: `Updated annotation pattern to ${patternType}`
-                });
-                setTimeout(() => setNotification(null), 3000);
+                onNotify('info', `Updated annotation pattern to ${patternType}`);
 
                 setEditingAnnotationId(null);
-                setShowPatternSelector(false);
                 selectionManager.deactivateSelectionMode();
             } catch (error) {
                 console.error('Failed to update annotation:', error);
@@ -201,51 +200,32 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                     patternSubtype
                 });
 
-                // Show success notification
-                setNotification({
-                    type: 'success',
-                    message: `Created ${patternType} annotation with ${selectionState.selectedNodeIds.length} nodes`
-                });
-
-                // Clear notification after 3 seconds
-                setTimeout(() => setNotification(null), 3000);
+                onNotify('info', `Created ${patternType} annotation with ${selectionState.selectedNodeIds.length} nodes`);
 
             } catch (error) {
                 console.error('Failed to create annotation:', error);
 
-                // Show error notification
-                setNotification({
-                    type: 'error',
-                    message: `Failed to create annotation: ${error instanceof Error ? error.message : 'Unknown error'}`
-                });
-
-                // Clear notification after 5 seconds
-                setTimeout(() => setNotification(null), 5000);
+                onNotify('error', `Failed to create annotation: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
 
             // Reset selection state through SelectionManager
             selectionManager.deactivateSelectionMode();
-            setShowPatternSelector(false);
         }
     };
 
     const handleDeleteAnnotation = (id: string) => {
         if (annotationStore.deleteAnnotation(id)) {
-            setNotification({
-                type: 'success',
-                message: 'Annotation deleted'
-            });
-            setTimeout(() => setNotification(null), 2000);
+            onNotify('info', 'Annotation deleted');
         }
     };
 
-    const handleEditAnnotation = (id: string) => {
+    const handleEditAnnotation = (id: string, position: { x: number, y: number }) => {
         const annotation = annotationStore.getAnnotation(id);
         if (annotation) {
             setEditingAnnotationId(id);
+            setSelectorPosition(position);
             selectionManager.activateSelectionMode();
             selectionManager.selectNodes(annotation.nodeIds);
-            setShowPatternSelector(true);
         }
     };
 
@@ -493,6 +473,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                                     console.error('Error selecting nodes in area:', error);
                                 }
                             }}
+                            onSelectionEnd={(pos) => setSelectorPosition(pos)}
                         />
                         {selectionBox && <SelectionBox selectionBox={selectionBox} />}
                     </>
@@ -523,251 +504,28 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                     currentPipeline={data.filePath}
                 />
 
-                {showPatternSelector && selectionState.isSelectionMode && (
-                    <Panel position="bottom-left" style={{ marginBottom: '60px', marginLeft: '60px' }}>
-                        <div className="pattern-selector-panel">
-                            <div className="panel-header">
-                                <h3>{editingAnnotationId ? 'Modify Annotation' : 'Create Annotation'}</h3>
-                                <p>
-                                    {selectionState.selectedNodeIds.length > 0
-                                        ? `Choose a pattern for the selected nodes (${selectionState.selectedNodeIds.length} selected)`
-                                        : 'Select nodes by clicking or drawing a rectangle'}
-                                </p>
-                                {selectionState.selectedNodeIds.length > 0 && annotationStore.areNodesAnnotated(selectionState.selectedNodeIds) && (
-                                    <div className="warning-message">
-                                        ⚠️ {selectionState.selectedNodeIds.length === 1 ? 'This node is' : 'Some nodes are'} already annotated
-                                    </div>
-                                )}
-                            </div>
-                            <PatternSelector
-                                onPatternSelect={handlePatternSelect}
-                                disabled={false}
-                            />
-                            <div className="panel-actions">
-                                <button
-                                    className="cancel-button"
-                                    onClick={() => {
-                                        selectionManager.deactivateSelectionMode();
-                                        setShowPatternSelector(false);
-                                        setEditingAnnotationId(null);
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                        <style>{`
-              .pattern-selector-panel {
-                background: var(--color-bg-primary);
-                border: 1px solid var(--color-border);
-                border-radius: 8px;
-                padding: 16px;
-                box-shadow: 0 4px 12px var(--color-shadow);
-                min-width: 280px;
-                max-width: 320px;
-              }
-              
-              .panel-header {
-                margin-bottom: 12px;
-              }
-              
-              .panel-header h3 {
-                margin: 0 0 4px 0;
-                font-size: 14px;
-                font-weight: 600;
-                color: var(--color-text-primary);
-              }
-              
-              .panel-header p {
-                margin: 0 0 8px 0;
-                font-size: 12px;
-                color: var(--color-text-secondary);
-              }
-              
-              .warning-message {
-                font-size: 11px;
-                color: #f59e0b;
-                background: rgba(245, 158, 11, 0.1);
-                padding: 6px 8px;
-                border-radius: 4px;
-                margin-bottom: 8px;
-              }
-              
-              .panel-actions {
-                margin-top: 12px;
-                display: flex;
-                justify-content: flex-end;
-              }
-              
-              .cancel-button {
-                background: transparent;
-                border: 1px solid var(--color-border);
-                color: var(--color-text-secondary);
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-size: 11px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-              }
-              
-              .cancel-button:hover {
-                background: var(--color-bg-hover);
-                color: var(--color-text-primary);
-              }
-            `}</style>
-                    </Panel>
+                {showPatternSelector && selectionState.isSelectionMode && selectorPosition && (
+                    <div
+                        className="floating-pattern-selector"
+                        style={{
+                            position: 'fixed',
+                            left: selectorPosition.x + 10,
+                            top: selectorPosition.y,
+                            zIndex: 2000,
+                            pointerEvents: 'auto'
+                        }}
+                    >
+                        <PatternSelector
+                            onPatternSelect={handlePatternSelect}
+                            disabled={false}
+                            activeCategory={activeCategory}
+                        />
+                    </div>
                 )}
 
-                {notification && (
-                    <Panel position="top-right" style={{ marginTop: '60px', marginRight: '20px' }}>
-                        <div className={`notification ${notification.type}`}>
-                            <div className="notification-content">
-                                {notification.type === 'success' ? '✅' : '❌'} {notification.message}
-                            </div>
-                            <button
-                                className="notification-close"
-                                onClick={() => setNotification(null)}
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <style>{`
-              .notification {
-                background: var(--color-bg-primary);
-                border: 1px solid var(--color-border);
-                border-radius: 8px;
-                padding: 12px;
-                box-shadow: 0 4px 12px var(--color-shadow);
-                min-width: 250px;
-                max-width: 350px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-              }
-              
-              .notification.success {
-                border-left: 4px solid #10b981;
-              }
-              
-              .notification.error {
-                border-left: 4px solid #ef4444;
-              }
-              
-              .notification-content {
-                flex: 1;
-                font-size: 12px;
-                color: var(--color-text-primary);
-                line-height: 1.4;
-              }
-              
-              .notification-close {
-                background: transparent;
-                border: none;
-                color: var(--color-text-secondary);
-                font-size: 16px;
-                cursor: pointer;
-                padding: 0;
-                width: 20px;
-                height: 20px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 2px;
-                transition: all 0.2s ease;
-              }
-              
-              .notification-close:hover {
-                background: var(--color-bg-hover);
-                color: var(--color-text-primary);
-              }
-            `}</style>
-                    </Panel>
-                )}
 
-                {selectionState.isSelectionMode && (
-                    <Panel position="top-left" style={{ marginTop: '60px', marginLeft: '20px' }}>
-                        <div className="selection-status-panel">
-                            <div className="selection-status">
-                                <div className="status-indicator active"></div>
-                                <span className="status-text">Selection Mode</span>
-                            </div>
-                            <div className="selection-count">
-                                {selectionState.selectedNodeIds.length} node{selectionState.selectedNodeIds.length !== 1 ? 's' : ''} selected
-                            </div>
-                            <div className="annotation-info">
-                                {annotationStore.getAllAnnotations().length} annotation{annotationStore.getAllAnnotations().length !== 1 ? 's' : ''} total
-                            </div>
-                            <div className="selection-help">
-                                <div>Click nodes to select • Drag to select multiple</div>
-                                <div>Ctrl+A to select all • Esc to exit • Del to clear</div>
-                                {selectionState.selectedNodeIds.length > 0 && canCreateAnnotation && (
-                                    <div className="create-hint">Select pattern below to create annotation</div>
-                                )}
-                            </div>
-                        </div>
-                        <style>{`
-              .selection-status-panel {
-                background: var(--color-bg-primary);
-                border: 1px solid var(--color-border);
-                border-radius: 8px;
-                padding: 12px;
-                box-shadow: 0 4px 12px var(--color-shadow);
-                min-width: 200px;
-              }
-              
-              .selection-status {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 8px;
-              }
-              
-              .status-indicator {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                background: #f20d63;
-                animation: statusPulse 2s infinite;
-              }
-              
-              @keyframes statusPulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.5; }
-              }
-              
-              .status-text {
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--color-text-primary);
-              }
-              
-              .selection-count {
-                font-size: 11px;
-                color: var(--color-text-secondary);
-                margin-bottom: 4px;
-              }
-              
-              .annotation-info {
-                font-size: 11px;
-                color: var(--color-text-secondary);
-                margin-bottom: 8px;
-                font-style: italic;
-              }
-              
-              .selection-help {
-                font-size: 10px;
-                color: var(--color-text-secondary);
-                line-height: 1.3;
-              }
-              
-              .create-hint {
-                color: #f20d63 !important;
-                font-weight: 500;
-                margin-top: 4px;
-              }
-            `}</style>
-                    </Panel>
-                )}
+
+
             </ReactFlow>
 
             <style>{`

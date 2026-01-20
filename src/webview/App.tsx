@@ -63,12 +63,17 @@ const useAppStore = () => {
     postMessage({ type: 'selectCategory', category });
   };
 
+  const handleNotify = (notificationType: 'info' | 'error' | 'warning', message: string) => {
+    postMessage({ type: 'showNotification', notificationType, message });
+  };
+
   return {
     isLoading,
     pipelineData,
     availablePipelines,
     handlePipelineSelect,
-    handleCategorySelect
+    handleCategorySelect,
+    handleNotify
   };
 };
 
@@ -81,7 +86,8 @@ const App: React.FC = () => {
     pipelineData,
     availablePipelines,
     handlePipelineSelect,
-    handleCategorySelect
+    handleCategorySelect,
+    handleNotify
   } = useAppStore();
 
   if (isLoading) {
@@ -94,6 +100,7 @@ const App: React.FC = () => {
       availablePipelines={availablePipelines}
       onPipelineSelect={handlePipelineSelect}
       onCategorySelect={handleCategorySelect}
+      onNotify={handleNotify}
     />
   );
 };
