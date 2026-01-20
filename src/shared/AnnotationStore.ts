@@ -1,9 +1,9 @@
-import { 
-  PipelineAnnotation, 
-  AnnotationState, 
-  SelectionState, 
-  PipelinePatternType, 
-  AnnotationColorScheme 
+import {
+  PipelineAnnotation,
+  AnnotationState,
+  SelectionState,
+  PipelinePatternType,
+  AnnotationColorScheme
 } from './types';
 
 /**
@@ -72,8 +72,8 @@ export class AnnotationStore {
    * Create a new annotation
    */
   createAnnotation(
-    nodeIds: string[], 
-    patternType: PipelinePatternType, 
+    nodeIds: string[],
+    patternType: PipelinePatternType,
     patternSubtype: string,
     label?: string
   ): string {
@@ -158,7 +158,7 @@ export class AnnotationStore {
     const newAnnotations = new Map(this.state.annotations);
     newAnnotations.delete(id);
 
-    this.updateState({ 
+    this.updateState({
       annotations: newAnnotations,
       uiState: {
         ...this.state.uiState,
@@ -192,7 +192,7 @@ export class AnnotationStore {
     }
 
     const filteredNodeIds = annotation.nodeIds.filter(id => !nodeIds.includes(id));
-    
+
     // If no nodes remain, delete the annotation
     if (filteredNodeIds.length === 0) {
       return this.deleteAnnotation(annotationId);
@@ -338,7 +338,7 @@ export class AnnotationStore {
   loadAnnotations(serializedData: string): boolean {
     try {
       const data = JSON.parse(serializedData);
-      
+
       if (!data.annotations || !Array.isArray(data.annotations)) {
         return false;
       }
@@ -401,11 +401,11 @@ export class AnnotationStore {
   private getColorForPattern(patternType: PipelinePatternType, patternSubtype: string): string {
     const colorScheme = this.state.preferences.colorScheme;
     const patternColors = colorScheme[patternType];
-    
+
     if (patternColors && patternColors[patternSubtype as keyof typeof patternColors]) {
       return patternColors[patternSubtype as keyof typeof patternColors];
     }
-    
+
     // Fallback colors
     const fallbackColors = {
       [PipelinePatternType.CICD]: '#3b82f6',
@@ -413,7 +413,7 @@ export class AnnotationStore {
       [PipelinePatternType.AI_AGENT]: '#8b5cf6',
       [PipelinePatternType.RPA]: '#f59e0b'
     };
-    
+
     return fallbackColors[patternType] || '#6b7280';
   }
 
@@ -429,7 +429,7 @@ export class AnnotationStore {
       [PipelinePatternType.DATA_PROCESSING]: {
         modelInference: '#10b981',
         modelTraining: '#059669',
-        etlElt: '#047857',
+        etl: '#047857',
         webscraping: '#065f46'
       },
       [PipelinePatternType.AI_AGENT]: {
@@ -465,7 +465,7 @@ export class AnnotationStore {
    * Get annotations containing specific node
    */
   getAnnotationsForNode(nodeId: string): PipelineAnnotation[] {
-    return this.getAllAnnotations().filter(annotation => 
+    return this.getAllAnnotations().filter(annotation =>
       annotation.nodeIds.includes(nodeId)
     );
   }

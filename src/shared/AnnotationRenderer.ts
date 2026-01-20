@@ -49,7 +49,7 @@ export class AnnotationRenderer {
    */
   calculateOptimalBounds(nodeIds: string[], nodePositions: NodePosition[]): AnnotationBounds | null {
     const relevantNodes = nodePositions.filter(node => nodeIds.includes(node.id));
-    
+
     if (relevantNodes.length === 0) {
       return null;
     }
@@ -69,7 +69,7 @@ export class AnnotationRenderer {
 
     // Calculate optimal padding based on node count and distribution
     const padding = this.calculateOptimalPadding(relevantNodes);
-    
+
     return {
       x: minX - padding,
       y: minY - padding,
@@ -84,7 +84,7 @@ export class AnnotationRenderer {
    */
   private calculateOptimalPadding(nodes: NodePosition[]): number {
     const basePadding = 16;
-    
+
     if (nodes.length === 1) {
       return basePadding;
     }
@@ -92,7 +92,7 @@ export class AnnotationRenderer {
     // For multiple nodes, calculate spacing and adjust padding
     const avgSpacing = this.calculateAverageNodeSpacing(nodes);
     const paddingMultiplier = Math.min(1.5, Math.max(0.8, avgSpacing / 100));
-    
+
     return Math.round(basePadding * paddingMultiplier);
   }
 
@@ -122,7 +122,7 @@ export class AnnotationRenderer {
    */
   getPatternStyle(annotation: PipelineAnnotation): AnnotationStyle {
     const baseColor = this.getPatternColor(annotation.patternType, annotation.patternSubtype);
-    
+
     return {
       borderColor: baseColor,
       backgroundColor: this.addAlpha(baseColor, 0.08), // 8% opacity for background
@@ -138,7 +138,7 @@ export class AnnotationRenderer {
    */
   private getPatternColor(patternType: PipelinePatternType, patternSubtype: string): string {
     const patternColors = this.colorScheme[patternType];
-    
+
     if (!patternColors) {
       return '#f20d63'; // Fallback color
     }
@@ -160,7 +160,7 @@ export class AnnotationRenderer {
       [PipelinePatternType.DATA_PROCESSING]: {
         'Model Inference': 'modelInference',
         'Model Training': 'modelTraining',
-        'ETL/ELT': 'etlElt',
+        'ETL/ELT': 'etl',
         'Webscraping': 'webscraping'
       },
       [PipelinePatternType.AI_AGENT]: {
@@ -201,13 +201,13 @@ export class AnnotationRenderer {
     annotationsWithBounds.forEach((item, index) => {
       const renderOrder = index;
       const style = this.getPatternStyle(item.annotation);
-      
+
       // Adjust style for overlapping annotations
       const overlappingCount = this.countOverlappingAnnotations(
-        item.bounds!, 
+        item.bounds!,
         annotationsWithBounds.slice(0, index).map(a => a.bounds!)
       );
-      
+
       if (overlappingCount > 0) {
         // Increase border width and adjust opacity for overlapping annotations
         style.borderWidth = Math.min(4, style.borderWidth + overlappingCount);
@@ -250,12 +250,12 @@ export class AnnotationRenderer {
   private addAlpha(hexColor: string, alpha: number): string {
     // Remove # if present
     const hex = hexColor.replace('#', '');
-    
+
     // Parse RGB values
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
-    
+
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
@@ -286,7 +286,7 @@ export class AnnotationRenderer {
         [PipelinePatternType.DATA_PROCESSING]: {
           modelInference: '#8b5cf6',  // Violet
           modelTraining: '#f59e0b',   // Amber
-          etlElt: '#06b6d4',          // Cyan
+          etl: '#06b6d4',          // Cyan
           webscraping: '#84cc16'      // Lime
         },
         [PipelinePatternType.AI_AGENT]: {
@@ -310,7 +310,7 @@ export class AnnotationRenderer {
         [PipelinePatternType.DATA_PROCESSING]: {
           modelInference: '#7c3aed',  // Violet-600
           modelTraining: '#d97706',   // Amber-600
-          etlElt: '#0891b2',          // Cyan-600
+          etl: '#0891b2',          // Cyan-600
           webscraping: '#65a30d'      // Lime-600
         },
         [PipelinePatternType.AI_AGENT]: {

@@ -20,7 +20,7 @@ export const DEFAULT_ANNOTATION_COLOR_SCHEME: AnnotationColorScheme = {
   [PipelinePatternTypeEnum.DATA_PROCESSING]: {
     modelInference: '#8B5CF6',  // Violet-500 - Purple for model inference
     modelTraining: '#F59E0B',   // Amber-500 - Orange for model training
-    etlElt: '#06B6D4',          // Cyan-500 - Cyan for ETL/ELT
+    etl: '#06B6D4',          // Cyan-500 - Cyan for ETL/ELT
     webscraping: '#84CC16',     // Lime-500 - Lime for webscraping
   },
   [PipelinePatternTypeEnum.AI_AGENT]: {
@@ -46,7 +46,7 @@ export const PIPELINE_PATTERN_SUBTYPES = {
   [PipelinePatternTypeEnum.DATA_PROCESSING]: [
     { key: 'modelInference', label: 'Model Inference', description: 'Machine learning model prediction steps' },
     { key: 'modelTraining', label: 'Model Training', description: 'Machine learning model training steps' },
-    { key: 'etlElt', label: 'ETL/ELT', description: 'Extract, Transform, Load data processing steps' },
+    { key: 'etl', label: 'ETL/ELT', description: 'Extract, Transform, Load data processing steps' },
     { key: 'webscraping', label: 'Web Scraping', description: 'Web data extraction and scraping steps' },
   ],
   [PipelinePatternTypeEnum.AI_AGENT]: [
