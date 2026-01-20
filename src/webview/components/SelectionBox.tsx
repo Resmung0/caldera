@@ -27,7 +27,9 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({ selectionBox }) => {
                 width: maxX - minX,
                 height: maxY - minY,
                 border: '2px dashed #f20d63',
-                backgroundColor: 'rgba(242, 13, 99, 0.1)',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(242, 13, 99, 0.05)',
+                boxShadow: '0 0 15px rgba(242, 13, 99, 0.3)',
                 pointerEvents: 'none',
                 zIndex: 1000,
             }}

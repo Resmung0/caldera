@@ -1,6 +1,6 @@
 import React from 'react';
 import { ControlButton } from 'reactflow';
-import { Target, X } from 'lucide-react';
+import { SquareDashed, SquareDashedMousePointer } from 'lucide-react';
 
 interface AnnotatorButtonProps {
   isSelectionMode: boolean;
@@ -43,8 +43,8 @@ export const AnnotatorButton: React.FC<AnnotatorButtonProps> = ({
       aria-label={isSelectionMode ? "Exit annotation selection mode" : "Enter annotation selection mode"}
       aria-pressed={isSelectionMode}
     >
-      {isSelectionMode ? <X size={16} /> : <Target size={16} />}
-      
+      {isSelectionMode ? <SquareDashedMousePointer size={16} /> : <SquareDashed size={16} />}
+
       <style>{`
         .annotator-button {
           position: relative;

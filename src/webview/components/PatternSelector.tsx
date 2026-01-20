@@ -1,14 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { PipelinePatternType } from '../../shared/types';
-import { PIPELINE_PATTERN_SUBTYPES, DEFAULT_ANNOTATION_COLOR_SCHEME } from '../../shared/annotationConstants';
-import { 
-  Workflow, 
-  Database, 
-  Sparkle, 
-  Bot, 
-  ChevronDown, 
-  ChevronUp,
-  Check 
+import { PIPELINE_PATTERN_SUBTYPES } from '../../shared/annotationConstants';
+import {
+  FlaskConical,
+  Hammer,
+  Layers,
+  BrainCircuit,
+  BrainCog,
+  Bug,
+  Link,
+  Network,
+  Split,
+  VectorSquare,
+  ChartSpline,
+  Globe,
+  Fingerprint
 } from 'lucide-react';
 
 interface PatternSelectorProps {
@@ -16,405 +22,214 @@ interface PatternSelectorProps {
   selectedPatternSubtype?: string;
   onPatternSelect: (patternType: PipelinePatternType, patternSubtype: string) => void;
   disabled?: boolean;
+  activeCategory?: string;
 }
+
+const SUBTYPE_ICONS: Record<string, React.ElementType> = {
+  // CI/CD
+  testing: FlaskConical,
+  build: Hammer,
+  // Data Processing
+  etl: Layers,
+  modelTraining: BrainCircuit,
+  modelInference: BrainCog,
+  webscraping: Bug,
+  // AI Agent
+  promptChaining: Link,
+  routing: Network,
+  parallelization: Split,
+  orchestratorWorkers: VectorSquare,
+  evaluatorOptimizer: ChartSpline,
+  // RPA
+  browseAutomation: Globe,
+};
 
 /**
  * PatternSelector component for choosing pipeline pattern types and subtypes
- * Provides a dropdown interface with pattern categories and their subtypes
+ * Rendered as a vertical list next to the cursor
  */
 export const PatternSelector: React.FC<PatternSelectorProps> = ({
   selectedPatternType,
   selectedPatternSubtype,
   onPatternSelect,
-  disabled = false
+  disabled = false,
+  activeCategory
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [expandedCategory, setExpandedCategory] = useState<PipelinePatternType | null>(null);
-  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
-  const containerRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Calcular posição do dropdown baseado no espaço disponível
-  useEffect(() => {
-    if (isOpen && containerRef.current && dropdownRef.current) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const dropdownHeight = dropdownRef.current.scrollHeight;
-      const viewportHeight = window.innerHeight;
-      
-      // Verificar se há espaço suficiente abaixo
-      const spaceBelow = viewportHeight - containerRect.bottom;
-      const spaceAbove = containerRect.top;
-      
-      // Posicionar acima se não houver espaço suficiente abaixo
-      if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-        setDropdownPosition('top');
-      } else {
-        setDropdownPosition('bottom');
-      }
-    }
-  }, [isOpen]);
-
-  // Fechar dropdown ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setExpandedCategory(null);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOpen]);
-
-  const patternCategories = [
-    { 
-      type: PipelinePatternType.CICD, 
-      icon: Workflow, 
+  const patternCategories = useMemo(() => [
+    {
+      type: PipelinePatternType.CICD,
       label: 'CI/CD',
-      description: 'Continuous Integration and Deployment patterns'
     },
-    { 
-      type: PipelinePatternType.DATA_PROCESSING, 
-      icon: Database, 
+    {
+      type: PipelinePatternType.DATA_PROCESSING,
       label: 'Data Processing',
-      description: 'Data transformation and processing patterns'
     },
-    { 
-      type: PipelinePatternType.AI_AGENT, 
-      icon: Sparkle, 
+    {
+      type: PipelinePatternType.AI_AGENT,
       label: 'AI Agent',
-      description: 'AI agent workflow and orchestration patterns'
     },
-    { 
-      type: PipelinePatternType.RPA, 
-      icon: Bot, 
+    {
+      type: PipelinePatternType.RPA,
       label: 'RPA',
-      description: 'Robotic Process Automation patterns'
     }
-  ];
-
-  const handleCategoryClick = (categoryType: PipelinePatternType) => {
-    if (expandedCategory === categoryType) {
-      setExpandedCategory(null);
-    } else {
-      setExpandedCategory(categoryType);
-    }
-  };
-
-  const handleSubtypeSelect = (patternType: PipelinePatternType, subtypeKey: string) => {
-    onPatternSelect(patternType, subtypeKey);
-    setIsOpen(false);
-    setExpandedCategory(null);
-  };
-
-  const getSelectedLabel = () => {
-    if (!selectedPatternType || !selectedPatternSubtype) {
-      return "Select Pattern";
-    }
-    
-    const category = patternCategories.find(cat => cat.type === selectedPatternType);
-    const subtypes = PIPELINE_PATTERN_SUBTYPES[selectedPatternType] || [];
-    const subtype = subtypes.find(st => st.key === selectedPatternSubtype);
-    
-    return `${category?.label}: ${subtype?.label}`;
-  };
-
-  const getPatternColor = (patternType: PipelinePatternType, subtypeKey: string) => {
-    const colorScheme = DEFAULT_ANNOTATION_COLOR_SCHEME[patternType];
-    return (colorScheme as any)[subtypeKey] || '#6B7280';
-  };
+  ].filter(category => !activeCategory || category.type === activeCategory), [activeCategory]);
 
   return (
-    <div className="pattern-selector-container" ref={containerRef}>
-      <div 
-        className={`pattern-selector ${isOpen ? 'open' : ''} ${disabled ? 'disabled' : ''}`}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && !disabled) {
-            e.preventDefault();
-            setIsOpen(!isOpen);
-          }
-        }}
-        tabIndex={disabled ? -1 : 0}
-        role="button"
-        aria-label="Select pipeline pattern"
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-      >
-        <span className="selected-pattern">{getSelectedLabel()}</span>
-        {dropdownPosition === 'bottom' ? (
-          <ChevronDown size={16} className={`chevron ${isOpen ? 'rotated' : ''}`} />
-        ) : (
-          <ChevronUp size={16} className={`chevron ${isOpen ? 'rotated' : ''}`} />
-        )}
+    <div className={`pattern-list-container ${disabled ? 'disabled' : ''}`}>
+      <div className="list-header">
+        <Fingerprint size={16} />
+        <span style={{ fontSize: '11px', marginLeft: '8px' }}>Choose your pipeline pattern to highlight</span>
       </div>
+      {patternCategories.map((category) => {
+        const subtypes = PIPELINE_PATTERN_SUBTYPES[category.type] || [];
 
-      {isOpen && !disabled && (
-        <div 
-          ref={dropdownRef}
-          className={`pattern-dropdown ${dropdownPosition}`}
-          role="listbox"
-        >
-          {patternCategories.map((category) => {
-            const Icon = category.icon;
-            const isExpanded = expandedCategory === category.type;
-            const subtypes = PIPELINE_PATTERN_SUBTYPES[category.type] || [];
+        return (
+          <div key={category.type} className="pattern-group">
+            {!activeCategory && <div className="group-label">{category.label}</div>}
+            <div className="subtypes-vertical-list">
+              {subtypes.map((subtype) => {
+                const Icon = SUBTYPE_ICONS[subtype.key] || Link;
+                const isSelected = selectedPatternType === category.type &&
+                  selectedPatternSubtype === subtype.key;
 
-            return (
-              <div key={category.type} className="pattern-category">
-                <div 
-                  className={`category-header ${isExpanded ? 'expanded' : ''}`}
-                  onClick={() => handleCategoryClick(category.type)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleCategoryClick(category.type);
-                    }
-                  }}
-                  tabIndex={0}
-                  role="button"
-                  aria-expanded={isExpanded}
-                >
-                  <div className="category-info">
-                    <Icon size={16} />
-                    <div>
-                      <div className="category-label">{category.label}</div>
-                      <div className="category-description">{category.description}</div>
+                return (
+                  <div
+                    key={subtype.key}
+                    className={`pattern-option-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => !disabled && onPatternSelect(category.type, subtype.key)}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Enter' || e.key === ' ') && !disabled) {
+                        e.preventDefault();
+                        onPatternSelect(category.type, subtype.key);
+                      }
+                    }}
+                    tabIndex={disabled ? -1 : 0}
+                    role="option"
+                    aria-selected={isSelected}
+                  >
+                    <div className="pattern-option-content">
+                      <Icon size={16} className="pattern-icon" />
+                      <span className="pattern-name">{subtype.label}</span>
                     </div>
                   </div>
-                  <ChevronDown 
-                    size={14} 
-                    className={`category-chevron ${isExpanded ? 'rotated' : ''}`} 
-                  />
-                </div>
-
-                {isExpanded && (
-                  <div className="subtypes-list">
-                    {subtypes.map((subtype) => {
-                      const isSelected = selectedPatternType === category.type && 
-                                       selectedPatternSubtype === subtype.key;
-                      const color = getPatternColor(category.type, subtype.key);
-
-                      return (
-                        <div
-                          key={subtype.key}
-                          className={`subtype-option ${isSelected ? 'selected' : ''}`}
-                          onClick={() => handleSubtypeSelect(category.type, subtype.key)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              handleSubtypeSelect(category.type, subtype.key);
-                            }
-                          }}
-                          tabIndex={0}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <div className="subtype-info">
-                            <div 
-                              className="color-indicator" 
-                              style={{ backgroundColor: color }}
-                            />
-                            <div>
-                              <div className="subtype-label">{subtype.label}</div>
-                              <div className="subtype-description">{subtype.description}</div>
-                            </div>
-                          </div>
-                          {isSelected && <Check size={16} className="check-icon" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       <style>{`
-        .pattern-selector-container {
-          position: relative;
-          min-width: 200px;
+        .pattern-list-container {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          min-width: 120px;
+          background: rgba(24, 27, 40, 0.95);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 8px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.2);
+          user-select: none;
         }
 
-        .pattern-selector {
+        .list-header {
+          font-size: 9px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.4);
+          padding: 4px 6px;
+          margin-bottom: 2px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          padding: 8px 12px;
-          background: var(--color-bg-primary);
-          border: 1px solid var(--color-border);
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          font-size: 13px;
+          gap: 6px;
         }
 
-        .pattern-selector:hover:not(.disabled) {
-          border-color: #f20d63;
-          box-shadow: 0 0 8px rgba(242, 13, 99, 0.2);
+        .pattern-list-container.disabled {
+          opacity: 0.6;
+          pointer-events: none;
         }
 
-        .pattern-selector:focus-visible {
-          outline: 2px solid #f20d63;
-          outline-offset: 2px;
+        .pattern-group {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
         }
 
-        .pattern-selector.disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .selected-pattern {
-          color: var(--color-text-primary);
-          font-weight: 500;
-        }
-
-        .chevron {
-          color: var(--color-text-secondary);
-          transition: transform 0.2s ease;
-        }
-
-        .chevron.rotated {
-          transform: rotate(180deg);
-        }
-
-        .pattern-dropdown {
-          position: absolute;
-          left: 0;
-          right: 0;
-          background: var(--color-bg-primary);
-          border: 1px solid var(--color-border);
-          border-radius: 6px;
-          box-shadow: 0 4px 12px var(--color-shadow);
-          z-index: 1000;
-          max-height: 300px;
-          overflow-y: auto;
-        }
-
-        .pattern-dropdown.bottom {
-          top: 100%;
-          margin-top: 4px;
-        }
-
-        .pattern-dropdown.top {
-          bottom: 100%;
+        .group-label {
+          font-size: 10px;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.4);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          padding: 4px 8px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
           margin-bottom: 4px;
         }
 
-        .pattern-category {
-          border-bottom: 1px solid var(--color-border);
+        .subtypes-vertical-list {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
         }
 
-        .pattern-category:last-child {
-          border-bottom: none;
-        }
-
-        .category-header {
+        .pattern-option-item {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          padding: 12px;
+          justify-content: flex-start;
+          padding: 6px 10px;
+          border-radius: 8px;
           cursor: pointer;
-          transition: background-color 0.2s ease;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          color: rgba(255, 255, 255, 0.8);
+          border: 1px solid transparent;
         }
 
-        .category-header:hover {
-          background: var(--color-bg-hover);
-        }
-
-        .category-header:focus-visible {
-          outline: 2px solid #f20d63;
-          outline-offset: -2px;
-        }
-
-        .category-info {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .category-label {
-          font-weight: 600;
-          color: var(--color-text-primary);
-          font-size: 13px;
-        }
-
-        .category-description {
-          font-size: 11px;
-          color: var(--color-text-secondary);
-          margin-top: 2px;
-        }
-
-        .category-chevron {
-          color: var(--color-text-secondary);
-          transition: transform 0.2s ease;
-        }
-
-        .category-chevron.rotated {
-          transform: rotate(180deg);
-        }
-
-        .subtypes-list {
-          background: var(--color-bg-secondary);
-          border-top: 1px solid var(--color-border);
-        }
-
-        .subtype-option {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 10px 16px;
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-        }
-
-        .subtype-option:hover {
-          background: var(--color-bg-hover);
-        }
-
-        .subtype-option:focus-visible {
-          outline: 2px solid #f20d63;
-          outline-offset: -2px;
-        }
-
-        .subtype-option.selected {
+        .pattern-option-item:hover {
           background: rgba(242, 13, 99, 0.1);
           color: #f20d63;
+          transform: translateX(4px);
+          border-color: rgba(242, 13, 99, 0.2);
         }
 
-        .subtype-info {
+        .pattern-option-item.selected {
+          background: rgba(242, 13, 99, 0.2);
+          color: #f20d63;
+          border-color: rgba(242, 13, 99, 0.3);
+        }
+
+        .pattern-option-content {
           display: flex;
           align-items: center;
           gap: 8px;
         }
 
-        .color-indicator {
-          width: 12px;
-          height: 12px;
-          border-radius: 2px;
+        .pattern-icon {
           flex-shrink: 0;
+          opacity: 0.8;
         }
 
-        .subtype-label {
+        .pattern-option-item:hover .pattern-icon {
+          opacity: 1;
+        }
+
+        .pattern-name {
+          font-size: 13px;
           font-weight: 500;
-          color: var(--color-text-primary);
-          font-size: 12px;
         }
 
-        .subtype-description {
-          font-size: 11px;
-          color: var(--color-text-secondary);
-          margin-top: 1px;
+        .pattern-list-container::-webkit-scrollbar {
+          width: 4px;
         }
 
-        .check-icon {
-          color: #f20d63;
-          flex-shrink: 0;
+        .pattern-list-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .pattern-list-container::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 2px;
         }
       `}</style>
     </div>

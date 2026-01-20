@@ -8,12 +8,14 @@ interface SelectionBoxHandlerProps {
     selectionState: SelectionState;
     onSelectionBoxChange: (box: { startX: number; startY: number; endX: number; endY: number } | null) => void;
     onNodesSelected: (nodeIds: string[]) => void;
+    onSelectionEnd?: (position: { x: number; y: number }) => void;
 }
 
 export const SelectionBoxHandler: React.FC<SelectionBoxHandlerProps> = ({
     selectionState,
     onSelectionBoxChange,
-    onNodesSelected
+    onNodesSelected,
+    onSelectionEnd
 }) => {
     const { screenToFlowPosition, getNodes } = useReactFlow();
     const isDragging = useRef(false);
@@ -125,11 +127,11 @@ export const SelectionBoxHandler: React.FC<SelectionBoxHandlerProps> = ({
 
                 if (nodesInBox.length > 0) {
                     onNodesSelected(nodesInBox);
+                    onSelectionEnd?.({ x: event.clientX, y: event.clientY });
                 }
 
                 isDragging.current = false;
                 selectionBoxStart.current = null;
-                onSelectionBoxChange(null);
             }
         };
 
