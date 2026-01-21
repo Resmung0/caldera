@@ -19,7 +19,22 @@ export const SelectionBoxHandler: React.FC<SelectionBoxHandlerProps> = ({
 }) => {
     const { screenToFlowPosition, getNodes } = useReactFlow();
     const isDragging = useRef(false);
+    const wasDragging = useRef(false);
     const selectionBoxStart = useRef<{ x: number; y: number } | null>(null);
+
+    // Prevent click event from clearing selection after a drag
+    useEffect(() => {
+        const handleWindowClick = (event: MouseEvent) => {
+            if (wasDragging.current) {
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                wasDragging.current = false;
+            }
+        };
+
+        window.addEventListener('click', handleWindowClick, { capture: true });
+        return () => window.removeEventListener('click', handleWindowClick, { capture: true });
+    }, []);
 
     // Attach mouse down listener to pane
     useEffect(() => {
@@ -128,6 +143,11 @@ export const SelectionBoxHandler: React.FC<SelectionBoxHandlerProps> = ({
                 if (nodesInBox.length > 0) {
                     onNodesSelected(nodesInBox);
                     onSelectionEnd?.({ x: event.clientX, y: event.clientY });
+
+                    // Prevent the subsequent click from clearing the selection
+                    wasDragging.current = true;
+                    // Safety timeout in case click doesn't fire
+                    setTimeout(() => { wasDragging.current = false; }, 100);
                 }
 
                 isDragging.current = false;
