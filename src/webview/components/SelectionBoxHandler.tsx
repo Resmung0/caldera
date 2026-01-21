@@ -17,7 +17,7 @@ export const SelectionBoxHandler: React.FC<SelectionBoxHandlerProps> = ({
     onNodesSelected,
     onSelectionEnd
 }) => {
-    const { screenToFlowPosition, getNodes } = useReactFlow();
+    const { screenToFlowPosition, getViewport, getNodes } = useReactFlow();
     const isDragging = useRef(false);
     const wasDragging = useRef(false);
     const selectionBoxStart = useRef<{ x: number; y: number } | null>(null);
@@ -142,12 +142,45 @@ export const SelectionBoxHandler: React.FC<SelectionBoxHandlerProps> = ({
 
                 if (nodesInBox.length > 0) {
                     onNodesSelected(nodesInBox);
-                    onSelectionEnd?.({ x: event.clientX, y: event.clientY });
+                    
+                    // Calculate center-top position of selected nodes for the pattern selector
+                    const selectedNodes = allNodes.filter(n => nodesInBox.includes(n.id));
+                    let selectorPos = { x: event.clientX, y: event.clientY };
+
+                    if (selectedNodes.length > 0) {
+                        const minX = Math.min(...selectedNodes.map(n => n.position.x));
+                        const maxX = Math.max(...selectedNodes.map(n => n.position.x + (n.width || 200)));
+                        const minY = Math.min(...selectedNodes.map(n => n.position.y));
+                        
+                        const flowCenter = {
+                            x: (minX + maxX) / 2,
+                            y: minY
+                        };
+                        
+                        // Manual conversion from Flow to Screen coordinates
+                        // Screen = Flow * Zoom + Viewport + PaneOffset
+                        const pane = document.querySelector('.react-flow__pane');
+                        if (pane) {
+                            const rect = pane.getBoundingClientRect();
+                            const { x: vpX, y: vpY, zoom } = getViewport();
+                            
+                            selectorPos = {
+                                x: (flowCenter.x * zoom) + vpX + rect.left,
+                                y: (flowCenter.y * zoom) + vpY + rect.top
+                            };
+                        }
+                    }
+
+                    onSelectionEnd?.(selectorPos);
 
                     // Prevent the subsequent click from clearing the selection
                     wasDragging.current = true;
                     // Safety timeout in case click doesn't fire
                     setTimeout(() => { wasDragging.current = false; }, 100);
+                } else {
+                    // Clear selection if no nodes are in the box
+                    onNodesSelected([]);
+                    onSelectionBoxChange(null);
                 }
 
                 isDragging.current = false;

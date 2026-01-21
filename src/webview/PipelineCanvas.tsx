@@ -151,7 +151,9 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
         if (selectionState.isSelectionMode) {
             selectionManager.deactivateSelectionMode();
             setEditingAnnotationId(null);
+            setSelectionBox(null);
         } else {
+            setSelectionBox(null);
             selectionManager.activateSelectionMode();
         }
     };
@@ -243,6 +245,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
     const handleCanvasClick = useCallback((event: React.MouseEvent) => {
         if (selectionState.isSelectionMode && event.target === event.currentTarget) {
             selectionManager.clearSelection();
+            setSelectionBox(null);
         }
     }, [selectionState.isSelectionMode, selectionManager]);
 
@@ -507,10 +510,12 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                         className="floating-pattern-selector"
                         style={{
                             position: 'fixed',
-                            left: selectorPosition.x + 10,
+                            left: selectorPosition.x,
                             top: selectorPosition.y,
                             zIndex: 2000,
-                            pointerEvents: 'auto'
+                            pointerEvents: 'auto',
+                            transform: 'translate(-50%, -100%)',
+                            marginTop: '-12px'
                         }}
                     >
                         <PatternSelector
