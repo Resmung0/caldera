@@ -100,6 +100,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
 
     // Annotation management using AnnotationStore
     const [annotationStore] = useState(() => new AnnotationStore());
+    const [annotations, setAnnotations] = useState(() => annotationStore.getAllAnnotations());
     const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
 
     const handleCategorySelect = (category: string) => {
@@ -123,8 +124,9 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
     // Subscribe to annotation store changes
     useEffect(() => {
         const unsubscribe = annotationStore.subscribe((annotationState) => {
-            // Update any UI that depends on annotation state
+            // Update UI with new annotations
             console.log('Annotation state updated:', annotationState.annotations.size, 'annotations');
+            setAnnotations(Array.from(annotationState.annotations.values()));
         });
 
         return unsubscribe;
@@ -454,7 +456,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
             >
                 <Background color="var(--color-bg-secondary)" gap={20} size={1} />
                 <AnnotationLayer
-                    annotations={annotationStore.getAllAnnotations()}
+                    annotations={annotations}
                     isDarkTheme={true}
                     showLabels={true}
                     animationEnabled={true}
