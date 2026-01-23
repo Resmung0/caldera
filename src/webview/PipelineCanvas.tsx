@@ -13,7 +13,7 @@ import ReactFlow, {
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
-import { PipelineData, PipelinePatternType, SelectionState } from '../shared/types';
+import { PipelineData, PipelinePatternType } from '../shared/types';
 import { EmptyState } from './EmptyState';
 import { AnnotatorButton } from './components/AnnotatorButton';
 import { PatternSelector } from './components/PatternSelector';
@@ -23,14 +23,13 @@ import { TopPanel } from './components/TopPanel';
 import { PipelineNodeItem } from './components/PipelineNodeItem';
 import { SelectionBoxHandler } from './components/SelectionBoxHandler';
 import { PipelineSelectorPanel } from './components/PipelineSelectorPanel';
-import { createInitialSelectionState } from '../shared/annotationUtils';
-import { SelectionManager } from '../shared/SelectionManager';
-import { AnnotationStore } from '../shared/AnnotationStore';
 import {
     Camera,
     ArrowRightLeft,
     ArrowUpDown
 } from 'lucide-react';
+import { useSelection } from './hooks/useSelection';
+import { useAnnotations } from './hooks/useAnnotations';
 
 const nodeWidth = 220;
 const nodeHeight = 80;
@@ -84,206 +83,30 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
     const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
     const [activeCategory, setActiveCategory] = useState<string>('cicd');
 
-    // Selection management using SelectionManager
-    const [selectionManager] = useState(() => new SelectionManager());
-    const [selectionState, setSelectionState] = useState<SelectionState>(createInitialSelectionState());
-    const [showPatternSelector, setShowPatternSelector] = useState(false);
-    const [selectorPosition, setSelectorPosition] = useState<{ x: number, y: number } | null>(null);
+    const {
+      selectionManager,
+      selectionState,
+      selectionBox,
+      setSelectionBox,
+      handleCanvasClick,
+      toggleSelectionMode,
+    } = useSelection(data.nodes);
 
-    // Selection box state for drag selection
-    const [selectionBox, setSelectionBox] = useState<{
-        startX: number;
-        startY: number;
-        endX: number;
-        endY: number;
-    } | null>(null);
-
-    // Annotation management using AnnotationStore
-    const [annotationStore] = useState(() => new AnnotationStore());
-    const [annotations, setAnnotations] = useState(() => annotationStore.getAllAnnotations());
-    const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
+    const {
+      annotations,
+      editingAnnotationId,
+      selectorPosition,
+      setSelectorPosition,
+      handlePatternSelect,
+      handleDeleteAnnotation,
+      handleEditAnnotation,
+    } = useAnnotations(onNotify, selectionManager);
 
     const handleCategorySelect = (category: string) => {
         setActiveCategory(category);
         onCategorySelect(category);
     };
 
-    // Subscribe to selection manager changes
-    useEffect(() => {
-        const unsubscribe = selectionManager.subscribe((selectedNodeIds, isSelectionMode) => {
-            setSelectionState(prev => ({
-                ...prev,
-                selectedNodeIds,
-                isSelectionMode
-            }));
-        });
-
-        return unsubscribe;
-    }, [selectionManager]);
-
-    // Subscribe to annotation store changes
-    useEffect(() => {
-        const unsubscribe = annotationStore.subscribe((annotationState) => {
-            // Update UI with new annotations
-            console.log('Annotation state updated:', annotationState.annotations.size, 'annotations');
-            setAnnotations(Array.from(annotationState.annotations.values()));
-        });
-
-        return unsubscribe;
-    }, [annotationStore]);
-
-    useEffect(() => {
-        if (selectionState.isSelectionMode && selectionState.selectedNodeIds.length > 0) {
-            setShowPatternSelector(true);
-        } else {
-            setShowPatternSelector(false);
-            setSelectorPosition(null);
-        }
-    }, [selectionState.isSelectionMode, selectionState.selectedNodeIds]);
-
-    // Update selection manager when nodes change
-    useEffect(() => {
-        if (data.nodes.length > 0) {
-            selectionManager.setAvailableNodes(data.nodes);
-        }
-    }, [data.nodes, selectionManager]);
-
-    // Annotation mode handlers
-    const handleToggleSelectionMode = () => {
-        if (selectionState.isSelectionMode) {
-            selectionManager.deactivateSelectionMode();
-            setEditingAnnotationId(null);
-            setSelectionBox(null);
-        } else {
-            setSelectionBox(null);
-            selectionManager.activateSelectionMode();
-        }
-    };
-
-    const handleNodeClick = useCallback((event: React.MouseEvent, node: any) => {
-        // Selection is now handled exclusively by the selection box (rectangle selection)
-        // Individual node clicking in selection mode won't toggle selection anymore
-        if (selectionState.isSelectionMode) {
-            event.stopPropagation();
-        }
-    }, [selectionState.isSelectionMode]);
-
-    const handlePatternSelect = (patternType: PipelinePatternType, patternSubtype: string) => {
-        if (editingAnnotationId) {
-            try {
-                annotationStore.updateAnnotation(editingAnnotationId, {
-                    patternType,
-                    patternSubtype,
-                    color: (annotationStore as any).getColorForPattern(patternType, patternSubtype) // Accessing private for quick fix or use a shared util if available
-                });
-
-                onNotify('info', `Updated annotation pattern to ${patternType}`);
-
-                setEditingAnnotationId(null);
-                selectionManager.deactivateSelectionMode();
-            } catch (error) {
-                console.error('Failed to update annotation:', error);
-            }
-            return;
-        }
-
-        if (selectionState.selectedNodeIds.length > 0) {
-            try {
-                // Create the annotation using AnnotationStore
-                const annotationId = annotationStore.createAnnotation(
-                    selectionState.selectedNodeIds,
-                    patternType,
-                    patternSubtype
-                );
-
-                console.log('Created annotation:', annotationId, {
-                    nodeIds: selectionState.selectedNodeIds,
-                    patternType,
-                    patternSubtype
-                });
-
-                onNotify('info', `Created ${patternType} annotation with ${selectionState.selectedNodeIds.length} nodes`);
-
-            } catch (error) {
-                console.error('Failed to create annotation:', error);
-
-                onNotify('error', `Failed to create annotation: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-
-            // Reset selection state through SelectionManager
-            selectionManager.deactivateSelectionMode();
-        }
-    };
-
-    const handleDeleteAnnotation = (id: string) => {
-        if (annotationStore.deleteAnnotation(id)) {
-            onNotify('info', 'Annotation deleted');
-        }
-    };
-
-    const handleEditAnnotation = (id: string, position: { x: number, y: number }) => {
-        const annotation = annotationStore.getAnnotation(id);
-        if (annotation) {
-            setEditingAnnotationId(id);
-            setSelectorPosition(position);
-            selectionManager.activateSelectionMode();
-            selectionManager.selectNodes(annotation.nodeIds);
-        }
-    };
-
-    // Keep PatternSelector visible when in selection mode (showPatternSelector is now controlled by handleToggleSelectionMode)
-    // Remove the old effect that hid it when no nodes were selected
-
-    // Validate annotation creation
-    const canCreateAnnotation = useMemo(() => {
-        return selectionState.isSelectionMode &&
-            selectionState.selectedNodeIds.length > 0 &&
-            selectionState.selectedNodeIds.every(nodeId =>
-                data.nodes.some(node => node.id === nodeId)
-            );
-    }, [selectionState.isSelectionMode, selectionState.selectedNodeIds, data.nodes]);
-
-    // Handle canvas click to clear selection when not clicking on nodes
-    const handleCanvasClick = useCallback((event: React.MouseEvent) => {
-        if (selectionState.isSelectionMode && event.target === event.currentTarget) {
-            selectionManager.clearSelection();
-            setSelectionBox(null);
-        }
-    }, [selectionState.isSelectionMode, selectionManager]);
-
-
-    // Keyboard shortcuts for selection operations
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (!selectionState.isSelectionMode) return;
-
-            switch (event.key) {
-                case 'Escape':
-                    event.preventDefault();
-                    selectionManager.deactivateSelectionMode();
-                    break;
-                case 'a':
-                case 'A':
-                    if (event.ctrlKey || event.metaKey) {
-                        event.preventDefault();
-                        try {
-                            selectionManager.selectAllNodes();
-                        } catch (error) {
-                            console.error('Error selecting all nodes:', error);
-                        }
-                    }
-                    break;
-                case 'Delete':
-                case 'Backspace':
-                    event.preventDefault();
-                    selectionManager.clearSelection();
-                    break;
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [selectionState.isSelectionMode, selectionManager]);
 
     const toggleLayoutDirection = useCallback(() => {
         setLayoutDirection((prevDirection) => (prevDirection === 'TB' ? 'LR' : 'TB'));
@@ -418,7 +241,6 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                 nodeTypes={nodeTypes}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
-                onNodeClick={handleNodeClick}
                 onPaneClick={handleCanvasClick}
                 panOnDrag={!selectionState.isSelectionMode}
                 selectionMode={null as any} // Disable default selection box to use our custom one
@@ -466,7 +288,6 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                 {selectionState.isSelectionMode && (
                     <>
                         <SelectionBoxHandler
-                            selectionManager={selectionManager}
                             selectionState={selectionState}
                             onSelectionBoxChange={setSelectionBox}
                             onNodesSelected={(nodeIds) => {
@@ -484,7 +305,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                 <Controls>
                     <AnnotatorButton
                         isSelectionMode={selectionState.isSelectionMode}
-                        onToggleSelectionMode={handleToggleSelectionMode}
+                        onToggleSelectionMode={toggleSelectionMode}
                     />
                     <ControlButton onClick={toggleLayoutDirection} title="Toggle Orientation">
                         {layoutDirection === 'TB' ? <ArrowRightLeft size={16} /> : <ArrowUpDown size={16} />}
@@ -507,7 +328,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                     currentPipeline={data.filePath}
                 />
 
-                {showPatternSelector && selectionState.isSelectionMode && selectorPosition && (
+                {selectionState.isSelectionMode && selectorPosition && (
                     <div
                         className="floating-pattern-selector"
                         style={{
@@ -521,16 +342,14 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                         }}
                     >
                         <PatternSelector
-                            onPatternSelect={handlePatternSelect}
-                            disabled={false}
+                            onPatternSelect={
+                                (patternType, patternSubtype) => handlePatternSelect(selectionState, patternType, patternSubtype)
+                            }
+                            disabled={!selectionState.selectedNodeIds.length && !editingAnnotationId}
                             activeCategory={activeCategory}
                         />
                     </div>
                 )}
-
-
-
-
             </ReactFlow>
 
             <style>{`

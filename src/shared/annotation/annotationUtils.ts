@@ -4,12 +4,13 @@ import {
   SelectionState, 
   PipelinePatternType,
   AnnotationColorScheme 
-} from './types';
+} from '../types';
 import { 
   DEFAULT_ANNOTATION_COLOR_SCHEME, 
   DEFAULT_ANNOTATION_PREFERENCES,
   ANNOTATION_SYSTEM_VERSION 
 } from './annotationConstants';
+import { generateAnnotationId, getPatternColor } from './annotationDomain';
 
 /**
  * Creates a new annotation with default values
@@ -34,29 +35,6 @@ export function createAnnotation(
   };
 }
 
-/**
- * Generates a unique annotation ID
- */
-export function generateAnnotationId(): string {
-  return `annotation_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
- * Gets the color for a specific pattern type and subtype
- */
-export function getPatternColor(
-  patternType: PipelinePatternType,
-  patternSubtype: string,
-  colorScheme: AnnotationColorScheme = DEFAULT_ANNOTATION_COLOR_SCHEME
-): string {
-  const patternColors = colorScheme[patternType];
-  if (patternColors && patternSubtype in patternColors) {
-    return (patternColors as any)[patternSubtype];
-  }
-  
-  // Fallback to a default color if pattern/subtype not found
-  return '#6B7280'; // Gray-500 as fallback
-}
 
 /**
  * Creates an initial annotation state

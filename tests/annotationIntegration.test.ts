@@ -1,16 +1,16 @@
 import {
   AnnotationStore
-} from '../src/shared/AnnotationStore';
+} from '../src/shared/annotation/AnnotationStore';
 import {
   SelectionManager
-} from '../src/shared/SelectionManager';
+} from '../src/shared/selection/SelectionManager';
 import {
   PipelineNode,
   PipelinePatternType
 } from '../src/shared/types';
 import {
   createInitialAnnotationState
-} from '../src/shared/annotationUtils';
+} from '../src/shared/annotation/annotationUtils';
 
 describe('Pipeline Annotation Integration Tests', () => {
 

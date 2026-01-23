@@ -122,5 +122,5 @@ export interface AnnotatedPipeline extends PipelineData {
 }
 
 // Re-export annotation utilities and constants for convenience
-export * from './annotationConstants';
-export * from './annotationUtils';
+export * from './annotation/annotationConstants';
+export * from './annotation/annotationUtils';

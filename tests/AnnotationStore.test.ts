@@ -1,4 +1,4 @@
-import { AnnotationStore } from '../src/shared/AnnotationStore';
+import { AnnotationStore } from '../src/shared/annotation/AnnotationStore';
 import { PipelinePatternType } from '../src/shared/types';
 
 describe('AnnotationStore', () => {

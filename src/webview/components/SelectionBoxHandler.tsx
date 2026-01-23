@@ -1,10 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { useReactFlow } from 'reactflow';
 import { SelectionState } from '../../shared/types';
-import { SelectionManager } from '../../shared/SelectionManager';
 
 interface SelectionBoxHandlerProps {
-    selectionManager: SelectionManager;
     selectionState: SelectionState;
     onSelectionBoxChange: (box: { startX: number; startY: number; endX: number; endY: number } | null) => void;
     onNodesSelected: (nodeIds: string[]) => void;
@@ -34,7 +32,7 @@ export const SelectionBoxHandler: React.FC<SelectionBoxHandlerProps> = ({
 
         window.addEventListener('click', handleWindowClick, { capture: true });
         return () => window.removeEventListener('click', handleWindowClick, { capture: true });
-    }, []);
+    }, [getViewport, getNodes]);
 
     // Attach mouse down listener to pane
     useEffect(() => {
@@ -195,7 +193,7 @@ export const SelectionBoxHandler: React.FC<SelectionBoxHandlerProps> = ({
             window.removeEventListener('mousemove', handleGlobalMouseMove);
             window.removeEventListener('mouseup', handleGlobalMouseUp);
         };
-    }, [selectionState.isSelectionMode, getNodes, onNodesSelected, onSelectionBoxChange, screenToFlowPosition]);
+    }, [selectionState.isSelectionMode, getNodes, onNodesSelected, onSelectionBoxChange, screenToFlowPosition, getViewport]);
 
     return null;
 };

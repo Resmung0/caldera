@@ -1,4 +1,4 @@
-import { PipelineAnnotation, AnnotationBounds, AnnotationColorScheme, PipelinePatternType } from './types';
+import { PipelineAnnotation, AnnotationBounds, AnnotationColorScheme, PipelinePatternType, PipelineNode } from '../types';
 
 export interface NodePosition {
   id: string;
@@ -271,6 +271,39 @@ export class AnnotationRenderer {
    */
   updateColorScheme(colorScheme: AnnotationColorScheme): void {
     this.colorScheme = colorScheme;
+  }
+
+  /**
+   * Calculate the bounding box for a group of nodes using centralized
+   * annotation bounds logic.
+   */
+  static getAnnotationBounds(nodes: PipelineNode[]): AnnotationBounds | null {
+    if (nodes.length === 0) {
+      return null;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    nodes.forEach(node => {
+      const { position, width, height } = node as any;
+      minX = Math.min(minX, position.x);
+      minY = Math.min(minY, position.y);
+      maxX = Math.max(maxX, position.x + (width ?? 220));
+      maxY = Math.max(maxY, position.y + (height ?? 80));
+    });
+
+    const padding = 16;
+
+    return {
+      x: minX - padding,
+      y: minY - padding,
+      width: maxX - minX + padding * 2,
+      height: maxY - minY + padding * 2,
+      padding,
+    };
   }
 
   /**
