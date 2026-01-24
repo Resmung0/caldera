@@ -1,4 +1,4 @@
-import { SelectionManager } from '../src/shared/SelectionManager';
+import { SelectionManager } from '../src/shared/selection/SelectionManager';
 import { PipelineNode } from '../src/shared/types';
 
 describe('SelectionManager', () => {

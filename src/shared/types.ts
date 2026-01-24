@@ -1,3 +1,5 @@
+import { PipelinePatternType, AnnotationColorScheme } from './base-types';
+
 export interface PipelineNode {
   id: string;
   label: string;
@@ -33,21 +35,9 @@ export type WebViewMessage =
   | { type: 'selectCategory', category: string }
   | { type: 'showNotification', notificationType: 'info' | 'error' | 'warning', message: string };
 
-export enum PipelineType {
-  CICD = 'cicd',
-  DataProcessing = 'data-processing',
-  AIAgent = 'ai-agent',
-  RPA = 'rpa',
-}
+export * from './base-types';
 
 // Annotation-related types and interfaces
-
-export enum PipelinePatternType {
-  CICD = 'cicd',
-  DATA_PROCESSING = 'data-processing',
-  AI_AGENT = 'ai-agent',
-  RPA = 'rpa'
-}
 
 export interface PipelineAnnotation {
   id: string;
@@ -72,29 +62,6 @@ export interface SelectionState {
   selectedNodeIds: string[];
   isSelectionMode: boolean;
   pendingAnnotation?: Partial<PipelineAnnotation>;
-}
-
-export interface AnnotationColorScheme {
-  [PipelinePatternType.CICD]: {
-    testing: string;
-    build: string;
-  };
-  [PipelinePatternType.DATA_PROCESSING]: {
-    modelInference: string;
-    modelTraining: string;
-    etl: string;
-    webscraping: string;
-  };
-  [PipelinePatternType.AI_AGENT]: {
-    promptChaining: string;
-    routing: string;
-    parallelization: string;
-    orchestratorWorkers: string;
-    evaluatorOptimizer: string;
-  };
-  [PipelinePatternType.RPA]: {
-    browseAutomation: string;
-  };
 }
 
 export interface AnnotationState {
@@ -122,5 +89,5 @@ export interface AnnotatedPipeline extends PipelineData {
 }
 
 // Re-export annotation utilities and constants for convenience
-export * from './annotationConstants';
-export * from './annotationUtils';
+export * from './annotation/annotationConstants';
+export * from './annotation/annotationUtils';

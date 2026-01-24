@@ -4,7 +4,12 @@ import {
   SelectionState,
   PipelinePatternType,
   AnnotationColorScheme
-} from './types';
+} from '../types';
+import {
+  generateAnnotationId,
+  getPatternColor,
+} from './annotationDomain';
+import { isValidAnnotation } from './annotationUtils';
 
 /**
  * AnnotationStore manages the state and operations for pipeline annotations.
@@ -346,7 +351,7 @@ export class AnnotationStore {
       const annotations = new Map<string, PipelineAnnotation>();
       for (const [id, annotation] of data.annotations) {
         // Validate annotation structure
-        if (this.isValidAnnotation(annotation)) {
+        if (isValidAnnotation(annotation)) {
           annotations.set(id, {
             ...annotation,
             createdAt: new Date(annotation.createdAt),
@@ -392,29 +397,14 @@ export class AnnotationStore {
    * Generate unique annotation ID
    */
   private generateAnnotationId(): string {
-    return `annotation_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return generateAnnotationId();
   }
 
   /**
    * Get color for pattern type and subtype
    */
-  private getColorForPattern(patternType: PipelinePatternType, patternSubtype: string): string {
-    const colorScheme = this.state.preferences.colorScheme;
-    const patternColors = colorScheme[patternType];
-
-    if (patternColors && patternColors[patternSubtype as keyof typeof patternColors]) {
-      return patternColors[patternSubtype as keyof typeof patternColors];
-    }
-
-    // Fallback colors
-    const fallbackColors = {
-      [PipelinePatternType.CICD]: '#3b82f6',
-      [PipelinePatternType.DATA_PROCESSING]: '#10b981',
-      [PipelinePatternType.AI_AGENT]: '#8b5cf6',
-      [PipelinePatternType.RPA]: '#f59e0b'
-    };
-
-    return fallbackColors[patternType] || '#6b7280';
+  getColorForPattern(patternType: PipelinePatternType, patternSubtype: string): string {
+    return getPatternColor(patternType, patternSubtype, this.state.preferences.colorScheme);
   }
 
   /**
@@ -446,22 +436,6 @@ export class AnnotationStore {
   }
 
   /**
-   * Validate annotation structure
-   */
-  private isValidAnnotation(annotation: any): annotation is PipelineAnnotation {
-    return (
-      annotation &&
-      typeof annotation.id === 'string' &&
-      Array.isArray(annotation.nodeIds) &&
-      Object.values(PipelinePatternType).includes(annotation.patternType) &&
-      typeof annotation.patternSubtype === 'string' &&
-      typeof annotation.color === 'string' &&
-      annotation.createdAt &&
-      annotation.modifiedAt
-    );
-  }
-
-  /**
    * Get annotations containing specific node
    */
   getAnnotationsForNode(nodeId: string): PipelineAnnotation[] {
@@ -487,5 +461,10 @@ export class AnnotationStore {
         ...preferences
       }
     });
+  }
+
+  canCreateAnnotation(): boolean {
+    const { isSelectionMode, selectedNodeIds } = this.state.selectionState;
+    return isSelectionMode && selectedNodeIds.length > 0;
   }
 }

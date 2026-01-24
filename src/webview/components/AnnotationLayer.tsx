@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useReactFlow, useViewport } from 'reactflow';
 import { PipelineAnnotation, AnnotationBounds } from '../../shared/types';
 import AnnotationItem from './AnnotationItem';
+import { AnnotationRenderer } from '../../shared/annotation/AnnotationRenderer';
 
 interface AnnotationLayerProps {
   annotations: PipelineAnnotation[];
@@ -32,43 +33,14 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({
   const { x: viewportX, y: viewportY, zoom } = useViewport();
 
   /**
-   * Calculate the bounding box for a group of nodes with padding
+   * Calculate the bounding box for a group of nodes using centralized
+   * annotation bounds logic from AnnotationRenderer.
    */
   const calculateAnnotationBounds = (nodeIds: string[]): AnnotationBounds | null => {
     const nodes = getNodes();
     const annotationNodes = nodes.filter(node => nodeIds.includes(node.id));
 
-    if (annotationNodes.length === 0) {
-      return null;
-    }
-
-    // Calculate the bounding rectangle that encompasses all selected nodes
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    annotationNodes.forEach(node => {
-      const nodeX = node.position.x;
-      const nodeY = node.position.y;
-      const nodeWidth = node.width || 220; // Default node width
-      const nodeHeight = node.height || 80; // Default node height
-
-      minX = Math.min(minX, nodeX);
-      minY = Math.min(minY, nodeY);
-      maxX = Math.max(maxX, nodeX + nodeWidth);
-      maxY = Math.max(maxY, nodeY + nodeHeight);
-    });
-
-    const padding = 16; // Padding around the grouped nodes
-
-    return {
-      x: minX - padding,
-      y: minY - padding,
-      width: maxX - minX + (padding * 2),
-      height: maxY - minY + (padding * 2),
-      padding
-    };
+    return AnnotationRenderer.getAnnotationBounds(annotationNodes);
   };
 
   /**

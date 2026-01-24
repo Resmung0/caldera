@@ -1,4 +1,7 @@
-import { PipelineNode } from './types';
+import { PipelineNode } from '../types';
+import { getNodesInArea } from './selection-geometry';
+import { getConnectedNodeIds } from './selection-graph';
+import { validateSelectionState } from './selection-validation';
 
 /**
  * SelectionManager handles multi-node selection logic and state transitions
@@ -90,23 +93,24 @@ export class SelectionManager {
   /**
    * Validate if a node can be selected
    */
-  private validateNodeSelection(nodeId: string): boolean {
+  private ensureSelectionMode(): void {
     if (!this.isSelectionModeActive) {
       throw new Error('Cannot select nodes when selection mode is not active');
     }
+  }
 
+  private validateNodeExists(nodeId: string): void {
     if (!this.availableNodes.has(nodeId)) {
       throw new Error(`Node '${nodeId}' is not available for selection`);
     }
-
-    return true;
   }
 
   /**
    * Select a single node (replaces current selection)
    */
   selectNode(nodeId: string): void {
-    this.validateNodeSelection(nodeId);
+    this.ensureSelectionMode();
+    this.validateNodeExists(nodeId);
 
     this.selectedNodes.clear();
     this.selectedNodes.add(nodeId);
@@ -117,11 +121,8 @@ export class SelectionManager {
    * Select multiple nodes (replaces current selection)
    */
   selectNodes(nodeIds: string[]): void {
-    if (!this.isSelectionModeActive) {
-      throw new Error('Cannot select nodes when selection mode is not active');
-    }
+    this.ensureSelectionMode();
 
-    // Validate all nodes before selecting any
     const invalidNodes = nodeIds.filter(nodeId => !this.availableNodes.has(nodeId));
     if (invalidNodes.length > 0) {
       throw new Error(`Nodes not available for selection: ${invalidNodes.join(', ')}`);
@@ -136,7 +137,8 @@ export class SelectionManager {
    * Add a node to the current selection
    */
   addNodeToSelection(nodeId: string): void {
-    this.validateNodeSelection(nodeId);
+    this.ensureSelectionMode();
+    this.validateNodeExists(nodeId);
 
     if (!this.selectedNodes.has(nodeId)) {
       this.selectedNodes.add(nodeId);
@@ -158,7 +160,8 @@ export class SelectionManager {
    * Toggle node selection (add if not selected, remove if selected)
    */
   toggleNodeSelection(nodeId: string): void {
-    this.validateNodeSelection(nodeId);
+    this.ensureSelectionMode();
+    this.validateNodeExists(nodeId);
 
     if (this.selectedNodes.has(nodeId)) {
       this.selectedNodes.delete(nodeId);
@@ -226,9 +229,7 @@ export class SelectionManager {
    * Select all available nodes
    */
   selectAllNodes(): void {
-    if (!this.isSelectionModeActive) {
-      throw new Error('Cannot select nodes when selection mode is not active');
-    }
+    this.ensureSelectionMode();
 
     const allNodeIds = Array.from(this.availableNodes.keys());
     this.selectedNodes = new Set(allNodeIds);
@@ -245,24 +246,16 @@ export class SelectionManager {
     endY: number,
     nodePositions: Map<string, { x: number; y: number }>
   ): void {
-    if (!this.isSelectionModeActive) {
-      throw new Error('Cannot select nodes when selection mode is not active');
-    }
+    this.ensureSelectionMode();
 
-    const minX = Math.min(startX, endX);
-    const maxX = Math.max(startX, endX);
-    const minY = Math.min(startY, endY);
-    const maxY = Math.max(startY, endY);
-
-    const nodesInArea: string[] = [];
-
-    for (const [nodeId, position] of nodePositions) {
-      if (this.availableNodes.has(nodeId) &&
-        position.x >= minX && position.x <= maxX &&
-        position.y >= minY && position.y <= maxY) {
-        nodesInArea.push(nodeId);
-      }
-    }
+    const nodesInArea = getNodesInArea(
+      nodePositions,
+      new Set(this.availableNodes.keys()),
+      startX,
+      startY,
+      endX,
+      endY,
+    );
 
     if (nodesInArea.length > 0) {
       this.selectNodes(nodesInArea);
@@ -311,43 +304,20 @@ export class SelectionManager {
     isValid: boolean;
     errors: string[];
   } {
-    const errors: string[] = [];
-
-    // Check if selection mode is properly set
-    if (this.selectedNodes.size > 0 && !this.isSelectionModeActive) {
-      errors.push('Nodes are selected but selection mode is not active');
-    }
-
-    // Check if all selected nodes are available
-    for (const nodeId of this.selectedNodes) {
-      if (!this.availableNodes.has(nodeId)) {
-        errors.push(`Selected node '${nodeId}' is not available`);
-      }
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+    return validateSelectionState(
+      this.selectedNodes,
+      new Set(this.availableNodes.keys()),
+      this.isSelectionModeActive,
+    );
   }
 
   /**
    * Get nodes that are connected to the current selection
    */
   getConnectedNodes(edges: Array<{ source: string; target: string }>): PipelineNode[] {
-    const selectedNodeIds = this.getSelectedNodeIds();
-    const connectedNodeIds = new Set<string>();
+    const connectedIds = getConnectedNodeIds(this.getSelectedNodeIds(), edges);
 
-    edges.forEach(edge => {
-      if (selectedNodeIds.includes(edge.source) && !selectedNodeIds.includes(edge.target)) {
-        connectedNodeIds.add(edge.target);
-      }
-      if (selectedNodeIds.includes(edge.target) && !selectedNodeIds.includes(edge.source)) {
-        connectedNodeIds.add(edge.source);
-      }
-    });
-
-    return Array.from(connectedNodeIds)
+    return Array.from(connectedIds)
       .map(nodeId => this.availableNodes.get(nodeId))
       .filter((node): node is PipelineNode => node !== undefined);
   }

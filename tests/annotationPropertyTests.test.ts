@@ -1,22 +1,24 @@
 import fc from 'fast-check';
 import {
   AnnotationStore
-} from '../src/shared/AnnotationStore';
+} from '../src/shared/annotation/AnnotationStore';
 import {
   createInitialAnnotationState
-} from '../src/shared/annotationUtils';
+} from '../src/shared/annotation/annotationUtils';
 import {
   SelectionManager
-} from '../src/shared/SelectionManager';
+} from '../src/shared/selection/SelectionManager';
 import {
   PipelineNode,
   PipelineAnnotation,
   PipelinePatternType
 } from '../src/shared/types';
 import {
-  createAnnotation,
+  createAnnotation
+} from '../src/shared/annotation/annotationUtils';
+import {
   generateAnnotationId
-} from '../src/shared/annotationUtils';
+} from '../src/shared/annotation/annotationDomain';
 
 // Helper functions for test data generation
 const arbitraryNodeId = () => fc.string({ minLength: 1, maxLength: 20 });
@@ -117,6 +119,33 @@ describe('Pipeline Annotation Property Tests', () => {
 
   // Property 3: Annotation Creation Controls
   describe('Property 3: Annotation Creation Controls', () => {
+    test('Annotation creation is rejected when no nodes are selected or selection mode is disabled', () => {
+      fc.assert(
+        fc.property(
+          fc.boolean(),
+          arbitraryNodeList(),
+          (isSelectionMode, selectedNodeIds) => {
+            // Only consider cases where annotation creation should be disallowed:
+            // either selection mode is off or there are no selected nodes.
+            fc.pre(!isSelectionMode || selectedNodeIds.length === 0);
+
+            const store = new AnnotationStore(createInitialAnnotationState());
+
+            // Apply selection mode and node selection according to generated values
+            store.setSelectionMode(isSelectionMode);
+
+            if (selectedNodeIds.length > 0) {
+              store.selectNodes(selectedNodeIds);
+            }
+
+            // Guard must prevent annotation creation when there is effectively no selection
+            expect(store.canCreateAnnotation()).toBe(false);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
     test('For any selection of nodes, when nodes are selected, annotation creation controls should become enabled', () => {
       fc.assert(
         fc.property(
