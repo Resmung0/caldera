@@ -1,4 +1,4 @@
-import { AnnotationColorScheme, PipelinePatternType } from '../types';
+import { AnnotationColorScheme, PipelinePatternType } from '../base-types';
 
 /**
  * Default color scheme for pipeline pattern annotations

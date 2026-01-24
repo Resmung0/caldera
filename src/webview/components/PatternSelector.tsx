@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { PipelinePatternType } from '../../shared/types';
-import { PIPELINE_PATTERN_SUBTYPES } from '../../shared/annotationConstants';
+import { PIPELINE_PATTERN_SUBTYPES } from '../../shared/annotation/annotationConstants';
 import {
   FlaskConical,
   Hammer,
