@@ -1,3 +1,5 @@
+import { PipelinePatternType, AnnotationColorScheme } from './base-types';
+
 export interface PipelineNode {
   id: string;
   label: string;
