@@ -6,7 +6,7 @@ import {
     Terminal,
     GitBranch
 } from 'lucide-react';
-import { SiGithub, SiGitlab } from 'react-icons/si';
+import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
 
 export const PipelineNodeItem = ({ data }: NodeProps) => {
     const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false } = data;
@@ -45,6 +45,9 @@ export const PipelineNodeItem = ({ data }: NodeProps) => {
                             }
                             if (framework.includes('gitlab')) {
                                 return <SiGitlab size={12} style={{ marginRight: 4 }} />;
+                            }
+                            if (framework.includes('dvc')) {
+                                return <SiDvc size={12} style={{ marginRight: 4 }} />;
                             }
                             return <GitBranch size={12} style={{ marginRight: 4 }} />;
                         })()}

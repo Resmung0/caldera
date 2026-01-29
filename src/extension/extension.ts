@@ -35,8 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
                 if (pipeline) {
                     const parser = pipeline.parsers.find(p => p.canParse(fileName, content));
                     if (parser) {
-                        const data = parser.parse(content, fileName);
-                        // We need to re-discover to get the full list of available pipelines
+                        // Trigger discovery if the file can be parsed
                         discoverPipelines(provider, pipeline, fileName);
                     }
                 }
@@ -125,7 +124,7 @@ async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IP
 
         if (parser) {
             console.log(`${LOG_PREFIX} ✅ Parsing ${fileToParse.fsPath} with ${parser.name}`);
-            const data = parser.parse(content, fileToParse.fsPath);
+            const data = await parser.parse(content, fileToParse.fsPath);
             provider.updatePipeline(data, allPipelineFiles);
         } else {
             console.log(`${LOG_PREFIX} ❓ No suitable parser for ${fileToParse.fsPath}`);
