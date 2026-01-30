@@ -9,7 +9,7 @@ export class AirflowParser implements IParser {
     return content.includes("from airflow import DAG");
   }
 
-  parse(content: string, filePath: string): PipelineData {
+  async parse(content: string, filePath: string): Promise<PipelineData> {
     // Placeholder implementation
     return {
       filePath,

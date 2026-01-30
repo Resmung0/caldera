@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Workflow, Database, Sparkle, Bot } from 'lucide-react';
+import { Workflow, Sparkle, Bot, Activity } from 'lucide-react';
 
 interface TopPanelProps {
     onCategorySelect: (category: string) => void;
@@ -18,7 +18,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCate
 
     const contexts = [
         { id: 'cicd', icon: Workflow, label: 'CI/CD' },
-        { id: 'data-processing', icon: Database, label: 'Data Processing' },
+        { id: 'data-processing', icon: Activity, label: 'Data Processing' },
         { id: 'ai-agent', icon: Sparkle, label: 'AI Agent' },
         { id: 'rpa', icon: Bot, label: 'Automation' },
     ];

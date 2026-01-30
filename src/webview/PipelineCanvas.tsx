@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toPng } from 'html-to-image';
 import ReactFlow, {
     Background,
@@ -44,7 +44,10 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
     dagreGraph.setGraph({ rankdir: direction });
 
     nodes.forEach((node) => {
-        dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+        const isArtifact = node.data?.type === 'artifact';
+        const w = isArtifact ? 220 : nodeWidth;
+        const h = isArtifact ? 60 : nodeHeight;
+        dagreGraph.setNode(node.id, { width: w, height: h });
     });
 
     edges.forEach((edge) => {
@@ -54,12 +57,15 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
     dagre.layout(dagreGraph);
 
     const layoutedNodes = nodes.map((node) => {
+        const isArtifact = node.data?.type === 'artifact';
+        const w = isArtifact ? 220 : nodeWidth;
+        const h = isArtifact ? 60 : nodeHeight;
         const nodeWithPosition = dagreGraph.node(node.id);
         return {
             ...node,
             position: {
-                x: nodeWithPosition.x - nodeWidth / 2,
-                y: nodeWithPosition.y - nodeHeight / 2,
+                x: nodeWithPosition.x - w / 2,
+                y: nodeWithPosition.y - h / 2,
             },
         };
     });
@@ -84,22 +90,22 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
     const [activeCategory, setActiveCategory] = useState<string>('cicd');
 
     const {
-      selectionManager,
-      selectionState,
-      selectionBox,
-      setSelectionBox,
-      handleCanvasClick,
-      toggleSelectionMode,
+        selectionManager,
+        selectionState,
+        selectionBox,
+        setSelectionBox,
+        handleCanvasClick,
+        toggleSelectionMode,
     } = useSelection(data.nodes);
 
     const {
-      annotations,
-      editingAnnotationId,
-      selectorPosition,
-      setSelectorPosition,
-      handlePatternSelect,
-      handleDeleteAnnotation,
-      handleEditAnnotation,
+        annotations,
+        editingAnnotationId,
+        selectorPosition,
+        setSelectorPosition,
+        handlePatternSelect,
+        handleDeleteAnnotation,
+        handleEditAnnotation,
     } = useAnnotations(onNotify, selectionManager);
 
     const handleCategorySelect = (category: string) => {
@@ -159,11 +165,13 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
     useEffect(() => {
         const initialNodes = data.nodes.map(n => ({
             id: n.id,
-            type: 'custom', // Use our custom node
+            type: 'custom',
             data: {
                 label: n.label,
                 status: n.status,
-                framework: data.framework // Pass framework to node
+                framework: data.framework,
+                type: n.type,
+                ...n.data
             },
             position: { x: 0, y: 0 },
         }));

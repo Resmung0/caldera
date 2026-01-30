@@ -9,7 +9,7 @@ export class KedroParser implements IParser {
     return content.includes("create_pipeline");
   }
 
-  parse(content: string, filePath: string): PipelineData {
+  async parse(content: string, filePath: string): Promise<PipelineData> {
     // Placeholder implementation
     return {
       filePath,

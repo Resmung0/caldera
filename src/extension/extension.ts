@@ -1,19 +1,21 @@
 import * as vscode from 'vscode';
 import { PipelineWebviewProvider } from './WebviewProvider';
+
 import { IPipeline } from './pipelines/IPipeline';
+import { ParserWithPatterns } from './pipelines/IPipeline';
 import { CICDPipeline } from './pipelines/CICDPipeline';
 import { DataProcessingPipeline } from './pipelines/DataProcessingPipeline';
 import { AIAgentPipeline } from './pipelines/AIAgentPipeline';
 import { RPAPipeline } from './pipelines/RPAPipeline';
 import { PipelineType } from '../shared/types';
-import { IParser } from './parsers/IParser';
 import { LOG_PREFIX } from './constants';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log(`${LOG_PREFIX} 🚀 Extension is activating...`);
 
     const provider = new PipelineWebviewProvider(context.extensionUri);
-    const pipelines: IPipeline[] = [
+    // Allow DataProcessingPipeline to omit 'patterns' property
+    const pipelines: (IPipeline | Omit<IPipeline, 'patterns'>)[] = [
         new CICDPipeline(),
         new DataProcessingPipeline(),
         new AIAgentPipeline(),
@@ -33,11 +35,10 @@ export function activate(context: vscode.ExtensionContext) {
                 const content = activeEditor.document.getText();
                 const pipeline = pipelines.find(p => p.type === provider.pipelineType);
                 if (pipeline) {
-                    const parser = pipeline.parsers.find(p => p.canParse(fileName, content));
+                    const parser = pipeline.parsers.find((p: any) => p.canParse(fileName, content));
                     if (parser) {
-                        const data = parser.parse(content, fileName);
-                        // We need to re-discover to get the full list of available pipelines
-                        discoverPipelines(provider, pipeline, fileName);
+                        // Trigger discovery if the file can be parsed
+                        discoverPipelines(provider, pipeline as any, fileName);
                     }
                 }
             }
@@ -54,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
     const discover = (targetFile?: string) => {
         const pipeline = pipelines.find(p => p.type === provider.pipelineType);
         if (pipeline) {
-            discoverPipelines(provider, pipeline, targetFile).catch(error => {
+            discoverPipelines(provider, pipeline as any, targetFile).catch(error => {
                 console.error(`${LOG_PREFIX} ❌ Error during pipeline discovery:`, error);
                 provider.setLoading(false);
             });
@@ -79,10 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     console.log(`${LOG_PREFIX} 🔍 Starting pipeline discovery...`);
-    discover();
-
     watchFiles();
-
     console.log(`${LOG_PREFIX} ✅ Extension activated successfully!`);
 }
 
@@ -90,15 +88,19 @@ async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IP
     provider.setLoading(true);
     console.log(`${LOG_PREFIX} 🔍 Discovering pipelines for category ${pipeline.type}. Target: ${targetFile || 'All'}`);
 
-    const allPipelineFiles: string[] = [];
 
-    // Find files using individual patterns to avoid nested brace issues
-    const filePromises = pipeline.patterns.map(pattern =>
-        vscode.workspace.findFiles(pattern, '**/node_modules/**')
-    );
-    const fileArrays = await Promise.all(filePromises);
-    const files = fileArrays.flat();
-    files.forEach(file => allPipelineFiles.push(file.fsPath));
+    // Collect files for each parser and keep track of which parser matches which file
+    const parserFiles: { parser: ParserWithPatterns, files: vscode.Uri[] }[] = [];
+    for (const parser of (pipeline.parsers as ParserWithPatterns[])) {
+        const foundArrays = await Promise.all(
+            parser.patterns.map(pattern => vscode.workspace.findFiles(pattern, '**/node_modules/**'))
+        );
+        const foundFiles = foundArrays.flat();
+        parserFiles.push({ parser, files: foundFiles });
+    }
+
+    // Flatten all files for the UI, but keep parser association for parsing
+    const allPipelineFiles: string[] = Array.from(new Set(parserFiles.flatMap(pf => pf.files.map(f => f.fsPath))));
 
     if (allPipelineFiles.length === 0) {
         console.log(`${LOG_PREFIX} ⚠️ No pipeline files found for category ${pipeline.type}.`);
@@ -114,24 +116,36 @@ async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IP
         return;
     }
 
-    const fileToParse = targetFile && allPipelineFiles.includes(targetFile)
-        ? vscode.Uri.file(targetFile)
-        : files[0];
+    // Pick the file to parse
+    let fileToParseUri: vscode.Uri | undefined;
+    if (targetFile && allPipelineFiles.includes(targetFile)) {
+        fileToParseUri = vscode.Uri.file(targetFile);
+    } else {
+        // Pick the first file found
+        fileToParseUri = parserFiles.find(pf => pf.files.length > 0)?.files[0];
+    }
+
+    if (!fileToParseUri) {
+        provider.setLoading(false);
+        return;
+    }
 
     try {
-        const document = await vscode.workspace.openTextDocument(fileToParse);
+        const document = await vscode.workspace.openTextDocument(fileToParseUri);
         const content = document.getText();
-        const parser = pipeline.parsers.find(p => p.canParse(fileToParse.fsPath, content));
+        // Find the parser that matches this file
+        const parser = parserFiles.find(pf => pf.files.some(f => f.fsPath === fileToParseUri!.fsPath))?.parser;
 
         if (parser) {
-            console.log(`${LOG_PREFIX} ✅ Parsing ${fileToParse.fsPath} with ${parser.name}`);
-            const data = parser.parse(content, fileToParse.fsPath);
-            provider.updatePipeline(data, allPipelineFiles);
+            console.log(`${LOG_PREFIX} ✅ Parsing ${fileToParseUri.fsPath} with ${parser.name}`);
+            const data = await parser.parse(content, fileToParseUri.fsPath);
+            // Always set category to pipeline.type for correct webview highlight
+            provider.updatePipeline({ ...data, category: pipeline.type }, allPipelineFiles);
         } else {
-            console.log(`${LOG_PREFIX} ❓ No suitable parser for ${fileToParse.fsPath}`);
+            console.log(`${LOG_PREFIX} ❓ No suitable parser for ${fileToParseUri.fsPath}`);
         }
     } catch (error) {
-        console.error(`${LOG_PREFIX} ❌ Error parsing ${fileToParse.fsPath}:`, error);
+        console.error(`${LOG_PREFIX} ❌ Error parsing ${fileToParseUri.fsPath}:`, error);
     } finally {
         provider.setLoading(false);
     }

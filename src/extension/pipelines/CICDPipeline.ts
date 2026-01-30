@@ -1,15 +1,12 @@
-import { IPipeline } from "./IPipeline";
-import { IParser } from "../parsers/IParser";
+import { IPipeline, ParserWithPatterns } from "./IPipeline";
 import { PipelineType } from "../../shared/types";
 import { GitHubActionsParser } from "../parsers/cicd/GitHubActionsParser";
 import { GitLabCIParser } from "../parsers/cicd/GitLabCIParser";
 
 export class CICDPipeline implements IPipeline {
   type: PipelineType = PipelineType.CICD;
-  parsers: IParser[] = [new GitHubActionsParser(), new GitLabCIParser()];
-  patterns: string[] = [
-    '**/.github/workflows/*.yml',
-    '**/.github/workflows/*.yaml',
-    '**/.gitlab-ci.yml',
+  parsers: ParserWithPatterns[] = [
+    Object.assign(new GitHubActionsParser(), { patterns: ['**/.github/workflows/*.yml', '**/.github/workflows/*.yaml'] }),
+    Object.assign(new GitLabCIParser(), { patterns: ['**/.gitlab-ci.yml', '**/.gitlab-ci.yaml', '**/*.gitlab-ci.yml', '**/*.gitlab-ci.yaml', '**/.gitlab/ci/*.yml', '**/.gitlab/ci/*.yaml'] }),
   ];
 }

@@ -9,7 +9,7 @@ export class UiPathParser implements IParser {
     return fileName.endsWith(".xaml");
   }
 
-  parse(content: string, filePath: string): PipelineData {
+  async parse(content: string, filePath: string): Promise<PipelineData> {
     // Placeholder implementation
     return {
       filePath,

@@ -9,7 +9,7 @@ export class GitHubActionsParser implements IParser {
         return fileName.endsWith('.yml') || fileName.endsWith('.yaml');
     }
 
-    parse(content: string, filePath: string): PipelineData {
+    async parse(content: string, filePath: string): Promise<PipelineData> {
         try {
             const doc = yaml.load(content) as any;
             const nodes: PipelineNode[] = [];
