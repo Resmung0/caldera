@@ -104,11 +104,13 @@ export class DVCParser implements IParser {
         const isWindows = process.platform === 'win32';
 
         // 1. Check local virtual environment
-        const venvPaths = [
-            path.join(cwd, '.venv', isWindows ? 'Scripts' : 'bin', isWindows ? 'dvc.exe' : 'dvc'),
-            path.join(cwd, 'venv', isWindows ? 'Scripts' : 'bin', isWindows ? 'dvc.exe' : 'dvc'),
-            path.join(cwd, 'env', isWindows ? 'Scripts' : 'bin', isWindows ? 'dvc.exe' : 'dvc'),
-        ];
+        const venvDirs = ['.venv', 'venv', 'env'];
+        const venvPaths: string[] = [];
+        for (const dir of venvDirs) {
+            venvPaths.push(
+            path.join(cwd, dir, isWindows ? 'Scripts' : 'bin', isWindows ? 'dvc.exe' : 'dvc')
+            );
+        }
 
         let result: CommandInfo | null = null;
 
