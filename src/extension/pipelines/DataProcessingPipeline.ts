@@ -12,5 +12,6 @@ export class DataProcessingPipeline implements IPipeline {
     '**/dags/*.py',
     '**/pipeline.py',
     '**/dvc.yaml',
+    '**/dvc.yml',
   ];
 }
