@@ -73,10 +73,33 @@ export class DVCParser implements IParser {
 
         let match;
         while ((match = nodeRegex.exec(mermaid)) !== null) {
+            const id = match[1];
+            const label = match[2];
+            const isArtifact = label.toLowerCase().endsWith('.dvc');
+
+            let dataType = 'other';
+            if (isArtifact) {
+                const baseName = label.slice(0, -4); // remove .dvc
+                const extMatch = baseName.match(/\.([^.]+)$/);
+                if (extMatch) {
+                    const ext = extMatch[1].toLowerCase();
+                    if (['png', 'tiff', 'jpg', 'jpeg'].includes(ext)) {
+                        dataType = 'image';
+                    } else if (['csv', 'tsv', 'parquet', 'feather', 'xlsx', 'xml'].includes(ext)) {
+                        dataType = 'table';
+                    } else if (['mp4', 'mov', 'mkv'].includes(ext)) {
+                        dataType = 'video';
+                    } else if (['mp3', 'ogg', 'aac', 'opus', 'wav'].includes(ext)) {
+                        dataType = 'audio';
+                    }
+                }
+            }
+
             nodes.push({
-                id: match[1],
-                label: match[2],
-                type: 'default'
+                id,
+                label,
+                type: isArtifact ? 'artifact' : 'default',
+                data: isArtifact ? { dataType } : undefined
             });
         }
 
@@ -108,7 +131,7 @@ export class DVCParser implements IParser {
         const venvPaths: string[] = [];
         for (const dir of venvDirs) {
             venvPaths.push(
-            path.join(cwd, dir, isWindows ? 'Scripts' : 'bin', isWindows ? 'dvc.exe' : 'dvc')
+                path.join(cwd, dir, isWindows ? 'Scripts' : 'bin', isWindows ? 'dvc.exe' : 'dvc')
             );
         }
 
@@ -127,7 +150,7 @@ export class DVCParser implements IParser {
                 await execPromise('uv --version');
                 await execPromise('uv run dvc --version', { cwd });
                 result = { command: 'uv', args: ['run', 'dvc'] };
-            } catch {}
+            } catch { }
         }
 
         if (!result) {
@@ -136,7 +159,7 @@ export class DVCParser implements IParser {
                 await execPromise('pipx --version');
                 await execPromise('pipx run dvc --version');
                 result = { command: 'pipx', args: ['run', 'dvc'] };
-            } catch {}
+            } catch { }
         }
 
         if (!result) {
@@ -144,7 +167,7 @@ export class DVCParser implements IParser {
             try {
                 await execPromise('dvc --version');
                 result = { command: 'dvc', args: [] };
-            } catch {}
+            } catch { }
         }
 
         if (result) {

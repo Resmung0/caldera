@@ -1,67 +1,167 @@
 import { Handle, Position, NodeProps } from 'reactflow';
 import {
-    CheckCircle,
-    XCircle,
-    Clock,
-    Terminal,
-    GitBranch
+  CheckCircle,
+  XCircle,
+  Clock,
+  Terminal,
+  GitBranch
 } from 'lucide-react';
 import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
+import { FiDatabase } from 'react-icons/fi';
+import { LuImage, LuTable2, LuVideo, LuMusic4 } from 'react-icons/lu';
 
-export const PipelineNodeItem = ({ data }: NodeProps) => {
-    const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false } = data;
+export const PipelineNodeItem = ({ data, id }: NodeProps) => {
+  const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false, type } = data;
 
-    const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
-    const sourcePosition = layoutDirection === 'LR' ? Position.Right : Position.Bottom;
+  const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
+  const sourcePosition = layoutDirection === 'LR' ? Position.Right : Position.Bottom;
 
-    // Determine icon based on status or type if available
-    const getStatusIcon = () => {
-        switch (data.status) {
-            case 'success': return <CheckCircle size={16} color="#4ade80" />;
-            case 'failed': return <XCircle size={16} color="#ef4444" />;
-            case 'running': return <Clock size={16} color="#3b82f6" />;
-            default: return <Terminal size={16} color="#a0aec0" />;
-        }
-    };
+  const isArtifact = type === 'artifact';
 
+  // Determine icon based on status or type if available
+  const getStatusIcon = () => {
+    switch (data.status) {
+      case 'success': return <CheckCircle size={16} color="#4ade80" />;
+      case 'failed': return <XCircle size={16} color="#ef4444" />;
+      case 'running': return <Clock size={16} color="#3b82f6" />;
+      default: return <Terminal size={16} color="#a0aec0" />;
+    }
+  };
+
+  const getDataTypeIcon = (dataType: string) => {
+    switch (dataType) {
+      case 'image': return <LuImage size={12} />;
+      case 'table': return <LuTable2 size={12} />;
+      case 'video': return <LuVideo size={12} />;
+      case 'audio': return <LuMusic4 size={12} />;
+      default: return null;
+    }
+  };
+
+  if (isArtifact) {
     return (
-        <div className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
-            <Handle type="target" position={targetPosition} className="handle" />
+      <div className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
+        <Handle type="target" position={targetPosition} className="handle" />
 
-            <div className="node-header">
-                <div className="node-icon">
-                    {getStatusIcon()}
-                </div>
-                <div className="node-title">{data.label}</div>
-            </div>
+        <div className="artifact-content">
+          <div className="artifact-icon">
+            <FiDatabase size={24} />
+          </div>
+          <div className="artifact-info">
+            <div className="artifact-name" title={data.label}>{data.label}</div>
+            {data.dataType && data.dataType !== 'other' && (
+              <div className="artifact-badge">
+                {getDataTypeIcon(data.dataType)}
+                <span>{data.dataType}</span>
+              </div>
+            )}
+          </div>
+        </div>
 
-            <div className="node-body">
-                {data.framework && (
-                    <div className="node-meta">
-                        {(() => {
-                            const framework = data.framework.toLowerCase();
-                            if (framework.includes('github')) {
-                                return <SiGithub size={12} style={{ marginRight: 4 }} />;
-                            }
-                            if (framework.includes('gitlab')) {
-                                return <SiGitlab size={12} style={{ marginRight: 4 }} />;
-                            }
-                            if (framework.includes('dvc')) {
-                                return <SiDvc size={12} style={{ marginRight: 4 }} />;
-                            }
-                            return <GitBranch size={12} style={{ marginRight: 4 }} />;
-                        })()}
-                        <span>{data.framework}</span>
-                    </div>
-                )}
-                <div className="node-status">
-                    {data.status || 'Idle'}
-                </div>
-            </div>
+        <Handle type="source" position={sourcePosition} className="handle" />
 
-            <Handle type="source" position={sourcePosition} className="handle" />
+        <style>{`
+                    .pipeline-node-item.artifact {
+                        width: 220px;
+                        height: 60px;
+                        border-radius: 30px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-start;
+                        padding: 0 20px;
+                        background: var(--color-bg-primary);
+                        border: 2px solid #2b2e3c;
+                        transition: all 0.3s ease;
+                    }
 
-            <style>{`
+                    .artifact-content {
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+                        gap: 12px;
+                        width: 100%;
+                        color: var(--color-text-primary);
+                    }
+
+                    .artifact-icon {
+                        color: var(--color-text-primary);
+                        display: flex;
+                        align-items: center;
+                        opacity: 0.9;
+                    }
+
+                    .artifact-info {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 2px;
+                        overflow: hidden;
+                    }
+
+                    .artifact-name {
+                        font-size: 14px;
+                        font-weight: 600;
+                        max-width: 140px;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                    }
+
+                    .artifact-badge {
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                        background: rgba(14, 165, 233, 0.1);
+                        border: 1px solid rgba(14, 165, 233, 0.3);
+                        border-radius: 12px;
+                        padding: 1px 6px;
+                        font-size: 9px;
+                        color: #0ea5e9;
+                        text-transform: capitalize;
+                    }
+                `}</style>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
+      <Handle type="target" position={targetPosition} className="handle" />
+
+      <div className="node-header">
+        <div className="node-icon">
+          {getStatusIcon()}
+        </div>
+        <div className="node-title">{data.label}</div>
+      </div>
+
+      <div className="node-body">
+        {data.framework && (
+          <div className="node-meta">
+            {(() => {
+              const framework = data.framework.toLowerCase();
+              if (framework.includes('github')) {
+                return <SiGithub size={12} style={{ marginRight: 4 }} />;
+              }
+              if (framework.includes('gitlab')) {
+                return <SiGitlab size={12} style={{ marginRight: 4 }} />;
+              }
+              if (framework.includes('dvc')) {
+                return <SiDvc size={12} style={{ marginRight: 4 }} />;
+              }
+              return <GitBranch size={12} style={{ marginRight: 4 }} />;
+            })()}
+            <span>{data.framework}</span>
+          </div>
+        )}
+        <div className="node-status">
+          {data.status || 'Idle'}
+        </div>
+      </div>
+
+      <Handle type="source" position={sourcePosition} className="handle" />
+
+      <style>{`
         .pipeline-node-item {
           background: var(--color-bg-primary);
           color: var(--color-text-primary);
@@ -110,6 +210,10 @@ export const PipelineNodeItem = ({ data }: NodeProps) => {
           pointer-events: none;
           animation: selectedPulse 2s infinite;
         }
+
+        .pipeline-node-item.artifact.selected::after {
+            border-radius: 50%;
+        }
         
         @keyframes selectedPulse {
           0%, 100% { opacity: 1; }
@@ -149,6 +253,6 @@ export const PipelineNodeItem = ({ data }: NodeProps) => {
           border: 2px solid var(--color-bg-primary) !important;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 };
