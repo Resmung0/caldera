@@ -1,10 +1,16 @@
+import React, { useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import {
   CheckCircle,
   XCircle,
   Clock,
   Terminal,
-  GitBranch
+  GitBranch,
+  ChevronDown,
+  ChevronRight,
+  FileCode,
+  List,
+  Folder
 } from 'lucide-react';
 import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
 import { FiDatabase } from 'react-icons/fi';
@@ -12,6 +18,8 @@ import { LuImage, LuTable2, LuVideo, LuMusic4 } from 'react-icons/lu';
 
 export const PipelineNodeItem = ({ data, id }: NodeProps) => {
   const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false, type } = data;
+  const [isCodeExpanded, setIsCodeExpanded] = useState(false);
+  const [isParamsExpanded, setIsParamsExpanded] = useState(false);
 
   const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
   const sourcePosition = layoutDirection === 'LR' ? Position.Right : Position.Bottom;
@@ -34,6 +42,7 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
       case 'table': return <LuTable2 size={12} />;
       case 'video': return <LuVideo size={12} />;
       case 'audio': return <LuMusic4 size={12} />;
+      case 'folder': return <Folder size={12} />;
       default: return null;
     }
   };
@@ -55,6 +64,13 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
                 <span>{data.dataType}</span>
               </div>
             )}
+            {data.dataType === 'folder' && data.contents && (
+              <div className="folder-preview">
+                {data.contents.map((item: string) => (
+                  <div key={item} className="folder-item">• {item}</div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -63,15 +79,31 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         <style>{`
                     .pipeline-node-item.artifact {
                         width: 220px;
-                        height: 60px;
-                        border-radius: 30px;
+                        min-height: 60px;
+                        border-radius: 12px;
                         display: flex;
                         align-items: center;
                         justify-content: flex-start;
-                        padding: 0 20px;
+                        padding: 10px 20px;
                         background: var(--color-bg-primary);
                         border: 2px solid #2b2e3c;
                         transition: all 0.3s ease;
+                    }
+
+                    .folder-preview {
+                      font-size: 10px;
+                      color: #a0aec0;
+                      margin-top: 4px;
+                      display: flex;
+                      flex-direction: column;
+                      gap: 2px;
+                    }
+
+                    .folder-item {
+                      white-space: nowrap;
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      max-width: 150px;
                     }
 
                     .artifact-content {
@@ -132,7 +164,12 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         <div className="node-icon">
           {getStatusIcon()}
         </div>
-        <div className="node-title">{data.label}</div>
+        <div className="node-title" title={data.label}>{data.label}</div>
+        {data.codeDeps && data.codeDeps.length > 0 && (
+          <div className="node-action" onClick={(e) => { e.stopPropagation(); setIsCodeExpanded(!isCodeExpanded); }}>
+            <ChevronRight size={16} style={{ transform: isCodeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+          </div>
+        )}
       </div>
 
       <div className="node-body">
@@ -154,6 +191,39 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
             <span>{data.framework}</span>
           </div>
         )}
+
+        {data.params && Object.keys(data.params).length > 0 && (
+          <div className="node-params-wrapper">
+            <div className="params-badge" onClick={(e) => { e.stopPropagation(); setIsParamsExpanded(!isParamsExpanded); }}>
+              <List size={10} />
+              <span>Params</span>
+              <ChevronDown size={10} style={{ transform: isParamsExpanded ? 'rotate(180deg)' : 'none' }} />
+            </div>
+            {isParamsExpanded && (
+              <div className="params-dropdown">
+                {Object.entries(data.params).map(([key, val]: [string, any]) => (
+                  <div key={key} className="param-item">
+                    <span className="param-key">{key}:</span>
+                    <span className="param-val">{typeof val === 'object' ? '{...}' : String(val)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isCodeExpanded && data.codeDeps && data.codeDeps.length > 0 && (
+          <div className="code-viewer">
+            <div className="code-header">
+              <FileCode size={10} />
+              <span>{data.codeDeps[0].path}</span>
+            </div>
+            <pre className="code-snippet">
+              {data.codeDeps[0].snippet}
+            </pre>
+          </div>
+        )}
+
         <div className="node-status">
           {data.status || 'Idle'}
         </div>
@@ -168,7 +238,7 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           border: 1px solid var(--color-border);
           border-radius: 12px;
           padding: 12px;
-          width: 200px;
+          width: 220px;
           box-shadow: 0 4px 6px var(--color-shadow);
           transition: all 0.3s ease;
           position: relative;
@@ -229,11 +299,88 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           padding-bottom: 8px;
         }
         .node-title {
+          flex: 1;
           font-weight: 600;
           font-size: 14px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+        .node-action {
+          cursor: pointer;
+          opacity: 0.6;
+          display: flex;
+          align-items: center;
+          transition: opacity 0.2s;
+        }
+        .node-action:hover {
+          opacity: 1;
+        }
+        .node-params-wrapper {
+          position: relative;
+          margin-top: 4px;
+        }
+        .params-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: rgba(242, 13, 99, 0.1);
+          border: 1px solid rgba(242, 13, 99, 0.3);
+          border-radius: 10px;
+          padding: 2px 8px;
+          font-size: 10px;
+          color: #f20d63;
+          cursor: pointer;
+        }
+        .params-dropdown {
+          margin-top: 4px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+          padding: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .param-item {
+          display: flex;
+          justify-content: space-between;
+          font-size: 9px;
+          gap: 8px;
+        }
+        .param-key {
+          color: #a0aec0;
+        }
+        .param-val {
+          color: #fff;
+          font-weight: 500;
+        }
+        .code-viewer {
+          margin-top: 8px;
+          background: #1a1b26;
+          border-radius: 6px;
+          border: 1px solid #2b2e3c;
+          overflow: hidden;
+        }
+        .code-header {
+          background: #24283b;
+          padding: 4px 8px;
+          font-size: 9px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: #7982a9;
+          border-bottom: 1px solid #2b2e3c;
+        }
+        .code-snippet {
+          margin: 0;
+          padding: 8px;
+          font-size: 10px;
+          color: #a9b1d6;
+          font-family: 'Fira Code', monospace;
+          white-space: pre;
+          overflow-x: auto;
+          max-height: 150px;
         }
         .node-body {
           font-size: 11px;
