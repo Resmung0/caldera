@@ -177,23 +177,53 @@ export class DVCParser implements IParser {
             const label = match[2];
             processedStages.add(label);
 
-            const stageDeps = stageToDeps.get(label) || [];
-            const codeDeps = stageDeps
-                .filter(d => this.categorizeDep(d) === 'code')
-                .map(d => ({ path: d, snippet: this.readFileSnippet(d, cwd) }));
+            const isArtifact = label.toLowerCase().endsWith('.dvc');
 
-            const stageParams = paramsData[label] || paramsData; // Some params might be global or stage-specific
-
-            nodes.push({
-                id,
-                label,
-                type: 'default',
-                data: {
-                    framework: this.name,
-                    codeDeps,
-                    params: stageParams
+            if (isArtifact) {
+                const baseName = label.slice(0, -4);
+                const extMatch = baseName.match(/\.([^.]+)$/);
+                let dataType = 'file';
+                if (extMatch) {
+                    const ext = extMatch[1].toLowerCase();
+                    if (['png', 'tiff', 'jpg', 'jpeg'].includes(ext)) {
+                        dataType = 'image';
+                    } else if (['csv', 'tsv', 'parquet', 'feather', 'xlsx', 'xml'].includes(ext)) {
+                        dataType = 'table';
+                    } else if (['mp4', 'mov', 'mkv'].includes(ext)) {
+                        dataType = 'video';
+                    } else if (['mp3', 'ogg', 'aac', 'opus', 'wav'].includes(ext)) {
+                        dataType = 'audio';
+                    }
                 }
-            });
+
+                nodes.push({
+                    id,
+                    label,
+                    type: 'artifact',
+                    data: {
+                        framework: this.name,
+                        dataType
+                    }
+                });
+            } else {
+                const stageDeps = stageToDeps.get(label) || [];
+                const codeDeps = stageDeps
+                    .filter(d => this.categorizeDep(d) === 'code')
+                    .map(d => ({ path: d, snippet: this.readFileSnippet(d, cwd) }));
+
+                const stageParams = paramsData[label] || paramsData;
+
+                nodes.push({
+                    id,
+                    label,
+                    type: 'default',
+                    data: {
+                        framework: this.name,
+                        codeDeps,
+                        params: stageParams
+                    }
+                });
+            }
 
             // Add artifact nodes for outputs
             const stageOuts = stageToOutputs.get(label) || [];
@@ -201,12 +231,29 @@ export class DVCParser implements IParser {
                 const artifactId = `art-${id}-${index}`;
                 const isFolder = !path.extname(out);
 
+                let dataType = isFolder ? 'folder' : 'file';
+                if (!isFolder) {
+                    const extMatch = out.match(/\.([^.]+)$/);
+                    if (extMatch) {
+                        const ext = extMatch[1].toLowerCase();
+                        if (['png', 'tiff', 'jpg', 'jpeg'].includes(ext)) {
+                            dataType = 'image';
+                        } else if (['csv', 'tsv', 'parquet', 'feather', 'xlsx', 'xml'].includes(ext)) {
+                            dataType = 'table';
+                        } else if (['mp4', 'mov', 'mkv'].includes(ext)) {
+                            dataType = 'video';
+                        } else if (['mp3', 'ogg', 'aac', 'opus', 'wav'].includes(ext)) {
+                            dataType = 'audio';
+                        }
+                    }
+                }
+
                 nodes.push({
                     id: artifactId,
                     label: out,
                     type: 'artifact',
                     data: {
-                        dataType: isFolder ? 'folder' : 'file',
+                        dataType,
                         contents: isFolder ? this.listFolderContents(out, cwd) : undefined
                     }
                 });
@@ -216,9 +263,6 @@ export class DVCParser implements IParser {
                     source: id,
                     target: artifactId
                 });
-
-                // Link artifact to consuming stages
-                // We'll handle this in the edge loop or by checking all stages
             });
         }
 
@@ -325,7 +369,8 @@ export class DVCParser implements IParser {
 
         const result = { commandInfo, isLocal };
         if (commandInfo) {
-            this.dvcCmdCache.set(cwd, result);
+            // Only cache if commandInfo is not null, and type matches cache type
+            this.dvcCmdCache.set(cwd, { commandInfo, isLocal });
         }
         return result;
     }

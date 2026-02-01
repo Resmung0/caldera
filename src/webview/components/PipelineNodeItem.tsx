@@ -52,104 +52,113 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
       <div className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
         <Handle type="target" position={targetPosition} className="handle" />
 
-        <div className="artifact-content">
-          <div className="artifact-icon">
-            <FiDatabase size={24} />
+        <div className="artifact-header">
+          <div className="artifact-header-icon">
+            <FiDatabase size={12} />
           </div>
-          <div className="artifact-info">
-            <div className="artifact-name" title={data.label}>{data.label}</div>
-            {data.dataType && data.dataType !== 'other' && (
-              <div className="artifact-badge">
-                {getDataTypeIcon(data.dataType)}
-                <span>{data.dataType}</span>
-              </div>
-            )}
-            {data.dataType === 'folder' && data.contents && (
-              <div className="folder-preview">
-                {data.contents.map((item: string) => (
-                  <div key={item} className="folder-item">• {item}</div>
-                ))}
-              </div>
-            )}
-          </div>
+          <div className="artifact-name" title={data.label}>{data.label}</div>
+        </div>
+
+        <div className="artifact-body">
+          {data.dataType && data.dataType !== 'other' && (
+            <div className="artifact-badge">
+              {getDataTypeIcon(data.dataType)}
+              <span>{data.dataType}</span>
+            </div>
+          )}
+          {data.dataType === 'folder' && data.contents && (
+            <div className="folder-preview">
+              {data.contents.slice(0, 1).map((item: string) => (
+                <div key={item} className="folder-item">• {item}</div>
+              ))}
+            </div>
+          )}
         </div>
 
         <Handle type="source" position={sourcePosition} className="handle" />
 
         <style>{`
                     .pipeline-node-item.artifact {
-                        width: 220px;
-                        min-height: 60px;
-                        border-radius: 12px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: flex-start;
-                        padding: 10px 20px;
+                        width: 180px;
+                        height: 36px;
+                        border-radius: 18px;
+                        padding: 3px 14px;
                         background: var(--color-bg-primary);
-                        border: 2px solid #2b2e3c;
-                        transition: all 0.3s ease;
-                    }
-
-                    .folder-preview {
-                      font-size: 10px;
-                      color: #a0aec0;
-                      margin-top: 4px;
-                      display: flex;
-                      flex-direction: column;
-                      gap: 2px;
-                    }
-
-                    .folder-item {
-                      white-space: nowrap;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                      max-width: 150px;
-                    }
-
-                    .artifact-content {
-                        display: flex;
-                        flex-direction: row;
-                        align-items: center;
-                        gap: 12px;
-                        width: 100%;
-                        color: var(--color-text-primary);
-                    }
-
-                    .artifact-icon {
-                        color: var(--color-text-primary);
-                        display: flex;
-                        align-items: center;
-                        opacity: 0.9;
-                    }
-
-                    .artifact-info {
+                        border: 1px solid var(--color-border);
                         display: flex;
                         flex-direction: column;
-                        align-items: flex-start;
-                        gap: 2px;
+                        transition: all 0.3s ease;
                         overflow: hidden;
                     }
 
-                    .artifact-name {
-                        font-size: 14px;
-                        font-weight: 600;
-                        max-width: 140px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                    }
-
-                    .artifact-badge {
+                    .artifact-header {
                         display: flex;
                         align-items: center;
                         gap: 4px;
-                        background: rgba(14, 165, 233, 0.1);
-                        border: 1px solid rgba(14, 165, 233, 0.3);
-                        border-radius: 12px;
-                        padding: 1px 6px;
-                        font-size: 9px;
-                        color: #0ea5e9;
+                        padding-bottom: 2px;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                        margin-bottom: 2px;
+                        height: 15px;
+                    }
+
+                    .artifact-header-icon {
+                        color: var(--color-text-primary);
+                        display: flex;
+                        align-items: center;
+                        opacity: 0.7;
+                    }
+
+                    .artifact-name {
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: var(--color-text-primary);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        flex: 1;
+                        line-height: 1;
+                    }
+
+                    .artifact-body {
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+                        gap: 4px;
+                        height: 12px;
+                    }
+
+                    .artifact-badge {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 2px;
+                        background: rgba(255, 255, 255, 0.03);
+                        border: 1px solid rgba(255, 255, 255, 0.05);
+                        border-radius: 6px;
+                        padding: 0px 4px;
+                        font-size: 7px;
+                        color: #94a3b8;
                         text-transform: capitalize;
+                        width: fit-content;
+                        line-height: 1;
+                    }
+
+                    .folder-preview {
+                        font-size: 7px;
+                        color: #94a3b8;
+                        display: flex;
+                        align-items: center;
+                        line-height: 1;
+                    }
+
+                    .folder-item {
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        max-width: 60px;
+                    }
+
+                    .pipeline-node-item.artifact.selected::after {
+                        border-radius: 18px;
                     }
                 `}</style>
       </div>
@@ -282,7 +291,7 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         }
 
         .pipeline-node-item.artifact.selected::after {
-            border-radius: 50%;
+            border-radius: 32px;
         }
         
         @keyframes selectedPulse {

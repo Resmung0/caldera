@@ -45,8 +45,8 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
 
     nodes.forEach((node) => {
         const isArtifact = node.data?.type === 'artifact';
-        const w = isArtifact ? 220 : nodeWidth;
-        const h = isArtifact ? 60 : nodeHeight;
+        const w = isArtifact ? 180 : nodeWidth;
+        const h = isArtifact ? 36 : nodeHeight;
         dagreGraph.setNode(node.id, { width: w, height: h });
     });
 
@@ -58,8 +58,8 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
 
     const layoutedNodes = nodes.map((node) => {
         const isArtifact = node.data?.type === 'artifact';
-        const w = isArtifact ? 220 : nodeWidth;
-        const h = isArtifact ? 60 : nodeHeight;
+        const w = isArtifact ? 180 : nodeWidth;
+        const h = isArtifact ? 36 : nodeHeight;
         const nodeWithPosition = dagreGraph.node(node.id);
         return {
             ...node,
