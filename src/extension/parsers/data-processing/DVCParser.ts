@@ -292,7 +292,7 @@ export class DVCParser implements IParser {
         const edges: PipelineEdge[] = [];
         const nodeById = new Map(nodes.map(n => [n.id, n]));
         const edgeRegex = /^\s*([^\s-]+)\s*-->\s*([^\s]+)/gm;
-        
+
         // Also add edges from stages to their output artifacts
         // This was previously done inside the node loop, but now we have artifactByPath
         // We can reconstruct these edges easily if we know which stage produced which artifact
@@ -300,12 +300,12 @@ export class DVCParser implements IParser {
         // edges.push({ id: `e-${id}-${artifactId}`, source: id, target: artifactId });
         // Since we are iterating nodes again in buildEdges? No, buildEdges iterates MERMAID edges.
         // We missed the "stage -> output artifact" edges. Let's add them.
-        
+
         // Retain the logic for "stage -> output artifact"
         // We can do this by iterating nodes and checking if they are stage nodes that have outputs
         // But better yet, buildStageAndArtifactNodes could return these initial edges too?
         // Or we just add them here.
-        
+
         // Let's iterate the nodes to add "Stage -> Artifact" edges first
         for (const node of nodes) {
             if (node.type === 'default') {
@@ -329,7 +329,7 @@ export class DVCParser implements IParser {
             const targetId = match[2];
             const sourceNode = nodeById.get(sourceId);
             const targetNode = nodeById.get(targetId);
-            
+
             if (!sourceNode || !targetNode) continue;
 
             const outputs = stageToOutputs.get(sourceNode.label) || [];
@@ -346,7 +346,7 @@ export class DVCParser implements IParser {
                     // So we want Stage -> Artifact -> Stage.
                     // The Stage -> Artifact edge is added in the loop above (producer -> artifact)
                     // Here we add Artifact -> TargetStage
-                    
+
                     edges.push({
                         id: `e-${artifactNode.id}-${targetId}`,
                         source: artifactNode.id,
@@ -354,7 +354,7 @@ export class DVCParser implements IParser {
                     });
                 }
             } else {
-                 // Fallback to direct edge
+                // Fallback to direct edge
                 edges.push({
                     id: `e-${sourceId}-${targetId}`,
                     source: sourceId,
@@ -448,7 +448,7 @@ export class DVCParser implements IParser {
             this.dvcCmdCache.set(cwd, result);
             return result;
         }
-        
+
         return null;
     }
 }

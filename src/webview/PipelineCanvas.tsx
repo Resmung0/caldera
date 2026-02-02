@@ -23,13 +23,17 @@ import { TopPanel } from './components/TopPanel';
 import { PipelineNodeItem } from './components/PipelineNodeItem';
 import { SelectionBoxHandler } from './components/SelectionBoxHandler';
 import { PipelineSelectorPanel } from './components/PipelineSelectorPanel';
+import { AnimatedEdge } from './components/AnimatedEdge';
 import {
     Camera,
     ArrowRightLeft,
-    ArrowUpDown
+    ArrowUpDown,
+    Play,
+    Square
 } from 'lucide-react';
 import { useSelection } from './hooks/useSelection';
 import { useAnnotations } from './hooks/useAnnotations';
+import { usePipelineRunner } from './hooks/usePipelineRunner';
 
 const nodeWidth = 220;
 const nodeHeight = 80;
@@ -135,6 +139,22 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
         [layoutDirection, selectionState.isSelectionMode, selectionState.selectedNodeIds]
     );
 
+    const edgeTypes = useMemo(
+        () => ({
+            animated: AnimatedEdge,
+        }),
+        []
+    );
+
+    const { runPipeline, stopPipeline, isRunning } = usePipelineRunner({
+        nodes,
+        edges,
+        setNodes,
+        setEdges,
+        onNotify,
+        stepDelay: 1500,
+    });
+
     const handleExportPNG = () => {
         const reactFlowElement = document.querySelector('.react-flow');
         if (reactFlowElement) {
@@ -180,7 +200,8 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
             id: e.id,
             source: e.source,
             target: e.target,
-            animated: true,
+            type: 'animated',
+            data: { status: 'idle' },
             style: { stroke: '#474c60', strokeWidth: 2 },
             markerEnd: {
                 type: MarkerType.ArrowClosed,
@@ -247,6 +268,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                 nodes={nodes}
                 edges={edges}
                 nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onPaneClick={handleCanvasClick}
@@ -311,6 +333,12 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                     </>
                 )}
                 <Controls>
+                    <ControlButton
+                        onClick={isRunning ? stopPipeline : runPipeline}
+                        title={isRunning ? 'Stop Pipeline' : 'Run Pipeline'}
+                    >
+                        {isRunning ? <Square size={16} /> : <Play size={16} />}
+                    </ControlButton>
                     <AnnotatorButton
                         isSelectionMode={selectionState.isSelectionMode}
                         onToggleSelectionMode={toggleSelectionMode}

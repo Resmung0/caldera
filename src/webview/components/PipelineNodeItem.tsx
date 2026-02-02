@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle,
   XCircle,
@@ -16,6 +17,40 @@ import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
 import { FiDatabase } from 'react-icons/fi';
 import { LuImage, LuTable2, LuVideo, LuMusic4 } from 'react-icons/lu';
 
+// Animation variants for node status
+const nodeVariants = {
+  idle: {},
+  processing: {},
+  failed: {
+    x: [-2, 2, -2, 2, -1, 1, 0],
+    rotate: [-1, 1, -1, 1, -0.5, 0.5, 0],
+    transition: {
+      duration: 0.4,
+      repeat: Infinity,
+      repeatDelay: 0.1,
+    },
+  },
+  success: {
+    scale: [1, 1.02, 1],
+    transition: {
+      duration: 0.5,
+    },
+  },
+};
+
+// Sweep overlay animation
+const sweepVariants = {
+  initial: { backgroundPosition: '-200% 0' },
+  animate: {
+    backgroundPosition: '200% 0',
+    transition: {
+      duration: 1.2,
+      repeat: Infinity,
+    },
+  },
+  exit: { opacity: 0, transition: { duration: 0.2 } },
+};
+
 export const PipelineNodeItem = ({ data, id }: NodeProps) => {
   const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false, type } = data;
   const [isCodeExpanded, setIsCodeExpanded] = useState(false);
@@ -26,15 +61,20 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
 
   const isArtifact = type === 'artifact';
 
-  // Determine icon based on status or type if available
   const getStatusIcon = () => {
     switch (data.status) {
       case 'success': return <CheckCircle size={16} color="#4ade80" />;
-      case 'failed': return <XCircle size={16} color="#ef4444" />;
-      case 'running': return <Clock size={16} color="#3b82f6" />;
+      case 'failed': return <XCircle size={16} color="#891fff" />;
+      case 'running':
+      case 'processing': return <Clock size={16} color="#f20d63" />;
       default: return <Terminal size={16} color="#a0aec0" />;
     }
   };
+
+  const isProcessing = data.status === 'running' || data.status === 'processing';
+  const isFailed = data.status === 'failed';
+  const isSuccess = data.status === 'success';
+  const animationStatus = isFailed ? 'failed' : isSuccess ? 'success' : 'idle';
 
   const getDataTypeIcon = (dataType: string) => {
     switch (dataType) {
@@ -49,8 +89,25 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
 
   if (isArtifact) {
     return (
-      <div className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
+      <motion.div
+        className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${isProcessing ? 'processing' : ''} ${isFailed ? 'failed' : ''} ${isSuccess ? 'success' : ''}`}
+        variants={nodeVariants}
+        animate={animationStatus}
+      >
         <Handle type="target" position={targetPosition} className="handle" />
+
+        {/* Sweep overlay for processing */}
+        <AnimatePresence>
+          {isProcessing && (
+            <motion.div
+              className="sweep-overlay"
+              variants={sweepVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            />
+          )}
+        </AnimatePresence>
 
         <div className="artifact-header">
           <div className="artifact-header-icon">
@@ -161,13 +218,30 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
                         border-radius: 18px;
                     }
                 `}</style>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
+    <motion.div
+      className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${isProcessing ? 'processing' : ''} ${isFailed ? 'failed' : ''} ${isSuccess ? 'success' : ''}`}
+      variants={nodeVariants}
+      animate={animationStatus}
+    >
       <Handle type="target" position={targetPosition} className="handle" />
+
+      {/* Sweep overlay for processing */}
+      <AnimatePresence>
+        {isProcessing && (
+          <motion.div
+            className="sweep-overlay"
+            variants={sweepVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          />
+        )}
+      </AnimatePresence>
 
       <div className="node-header">
         <div className="node-icon">
@@ -409,6 +483,6 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           border: 2px solid var(--color-bg-primary) !important;
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 };
