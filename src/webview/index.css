@@ -106,8 +106,3 @@ body {
   border-color: #891fff;
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
 }
-
-.pipeline-node-item.success {
-  border-color: #f20d63;
-}
-
