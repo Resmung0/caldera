@@ -1,71 +1,253 @@
+import React, { useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import {
-    CheckCircle,
-    XCircle,
-    Clock,
-    Terminal,
-    GitBranch
+  CheckCircle,
+  XCircle,
+  Clock,
+  Terminal,
+  GitBranch,
+  ChevronDown,
+  ChevronRight,
+  FileCode,
+  List,
+  Folder
 } from 'lucide-react';
-import { SiGithub, SiGitlab } from 'react-icons/si';
+import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
+import { FiDatabase } from 'react-icons/fi';
+import { LuImage, LuTable2, LuVideo, LuMusic4 } from 'react-icons/lu';
 
-export const PipelineNodeItem = ({ data }: NodeProps) => {
-    const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false } = data;
+export const PipelineNodeItem = ({ data, id }: NodeProps) => {
+  const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false, type } = data;
+  const [isCodeExpanded, setIsCodeExpanded] = useState(false);
+  const [isParamsExpanded, setIsParamsExpanded] = useState(false);
 
-    const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
-    const sourcePosition = layoutDirection === 'LR' ? Position.Right : Position.Bottom;
+  const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
+  const sourcePosition = layoutDirection === 'LR' ? Position.Right : Position.Bottom;
 
-    // Determine icon based on status or type if available
-    const getStatusIcon = () => {
-        switch (data.status) {
-            case 'success': return <CheckCircle size={16} color="#4ade80" />;
-            case 'failed': return <XCircle size={16} color="#ef4444" />;
-            case 'running': return <Clock size={16} color="#3b82f6" />;
-            default: return <Terminal size={16} color="#a0aec0" />;
-        }
-    };
+  const isArtifact = type === 'artifact';
 
+  // Determine icon based on status or type if available
+  const getStatusIcon = () => {
+    switch (data.status) {
+      case 'success': return <CheckCircle size={16} color="#4ade80" />;
+      case 'failed': return <XCircle size={16} color="#ef4444" />;
+      case 'running': return <Clock size={16} color="#3b82f6" />;
+      default: return <Terminal size={16} color="#a0aec0" />;
+    }
+  };
+
+  const getDataTypeIcon = (dataType: string) => {
+    switch (dataType) {
+      case 'image': return <LuImage size={12} />;
+      case 'table': return <LuTable2 size={12} />;
+      case 'video': return <LuVideo size={12} />;
+      case 'audio': return <LuMusic4 size={12} />;
+      case 'folder': return <Folder size={12} />;
+      default: return null;
+    }
+  };
+
+  if (isArtifact) {
     return (
-        <div className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
-            <Handle type="target" position={targetPosition} className="handle" />
+      <div className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
+        <Handle type="target" position={targetPosition} className="handle" />
 
-            <div className="node-header">
-                <div className="node-icon">
-                    {getStatusIcon()}
-                </div>
-                <div className="node-title">{data.label}</div>
+        <div className="artifact-header">
+          <div className="artifact-header-icon">
+            <FiDatabase size={12} />
+          </div>
+          <div className="artifact-name" title={data.label}>{data.label}</div>
+        </div>
+
+        <div className="artifact-body">
+          {data.dataType && data.dataType !== 'other' && (
+            <div className="artifact-badge">
+              {getDataTypeIcon(data.dataType)}
+              <span>{data.dataType}</span>
             </div>
-
-            <div className="node-body">
-                {data.framework && (
-                    <div className="node-meta">
-                        {(() => {
-                            const framework = data.framework.toLowerCase();
-                            if (framework.includes('github')) {
-                                return <SiGithub size={12} style={{ marginRight: 4 }} />;
-                            }
-                            if (framework.includes('gitlab')) {
-                                return <SiGitlab size={12} style={{ marginRight: 4 }} />;
-                            }
-                            return <GitBranch size={12} style={{ marginRight: 4 }} />;
-                        })()}
-                        <span>{data.framework}</span>
-                    </div>
-                )}
-                <div className="node-status">
-                    {data.status || 'Idle'}
-                </div>
+          )}
+          {data.dataType === 'folder' && data.contents && (
+            <div className="folder-preview">
+              {data.contents.slice(0, 1).map((item: string) => (
+                <div key={item} className="folder-item">• {item}</div>
+              ))}
             </div>
+          )}
+        </div>
 
-            <Handle type="source" position={sourcePosition} className="handle" />
+        <Handle type="source" position={sourcePosition} className="handle" />
 
-            <style>{`
+        <style>{`
+                    .pipeline-node-item.artifact {
+                        width: 180px;
+                        height: 36px;
+                        border-radius: 18px;
+                        padding: 3px 14px;
+                        background: var(--color-bg-primary);
+                        border: 1px solid var(--color-border);
+                        display: flex;
+                        flex-direction: column;
+                        transition: all 0.3s ease;
+                        overflow: hidden;
+                    }
+
+                    .artifact-header {
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                        padding-bottom: 2px;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                        margin-bottom: 2px;
+                        height: 15px;
+                    }
+
+                    .artifact-header-icon {
+                        color: var(--color-text-primary);
+                        display: flex;
+                        align-items: center;
+                        opacity: 0.7;
+                    }
+
+                    .artifact-name {
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: var(--color-text-primary);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        flex: 1;
+                        line-height: 1;
+                    }
+
+                    .artifact-body {
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+                        gap: 4px;
+                        height: 12px;
+                    }
+
+                    .artifact-badge {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 2px;
+                        background: rgba(255, 255, 255, 0.03);
+                        border: 1px solid rgba(255, 255, 255, 0.05);
+                        border-radius: 6px;
+                        padding: 0px 4px;
+                        font-size: 7px;
+                        color: #94a3b8;
+                        text-transform: capitalize;
+                        width: fit-content;
+                        line-height: 1;
+                    }
+
+                    .folder-preview {
+                        font-size: 7px;
+                        color: #94a3b8;
+                        display: flex;
+                        align-items: center;
+                        line-height: 1;
+                    }
+
+                    .folder-item {
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        max-width: 60px;
+                    }
+
+                    .pipeline-node-item.artifact.selected::after {
+                        border-radius: 18px;
+                    }
+                `}</style>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}>
+      <Handle type="target" position={targetPosition} className="handle" />
+
+      <div className="node-header">
+        <div className="node-icon">
+          {getStatusIcon()}
+        </div>
+        <div className="node-title" title={data.label}>{data.label}</div>
+        {data.codeDeps && data.codeDeps.length > 0 && (
+          <div className="node-action" onClick={(e) => { e.stopPropagation(); setIsCodeExpanded(!isCodeExpanded); }}>
+            <ChevronRight size={16} style={{ transform: isCodeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+          </div>
+        )}
+      </div>
+
+      <div className="node-body">
+        {data.framework && (
+          <div className="node-meta">
+            {(() => {
+              const framework = data.framework.toLowerCase();
+              if (framework.includes('github')) {
+                return <SiGithub size={12} style={{ marginRight: 4 }} />;
+              }
+              if (framework.includes('gitlab')) {
+                return <SiGitlab size={12} style={{ marginRight: 4 }} />;
+              }
+              if (framework.includes('dvc')) {
+                return <SiDvc size={12} style={{ marginRight: 4 }} />;
+              }
+              return <GitBranch size={12} style={{ marginRight: 4 }} />;
+            })()}
+            <span>{data.framework}</span>
+          </div>
+        )}
+
+        {data.params && Object.keys(data.params).length > 0 && (
+          <div className="node-params-wrapper">
+            <div className="params-badge" onClick={(e) => { e.stopPropagation(); setIsParamsExpanded(!isParamsExpanded); }}>
+              <List size={10} />
+              <span>Params</span>
+              <ChevronDown size={10} style={{ transform: isParamsExpanded ? 'rotate(180deg)' : 'none' }} />
+            </div>
+            {isParamsExpanded && (
+              <div className="params-dropdown">
+                {Object.entries(data.params).map(([key, val]: [string, any]) => (
+                  <div key={key} className="param-item">
+                    <span className="param-key">{key}:</span>
+                    <span className="param-val">{typeof val === 'object' ? '{...}' : String(val)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isCodeExpanded && data.codeDeps && data.codeDeps.length > 0 && (
+          <div className="code-viewer">
+            <div className="code-header">
+              <FileCode size={10} />
+              <span>{data.codeDeps[0].path}</span>
+            </div>
+            <pre className="code-snippet">
+              {data.codeDeps[0].snippet}
+            </pre>
+          </div>
+        )}
+
+        <div className="node-status">
+          {data.status || 'Idle'}
+        </div>
+      </div>
+
+      <Handle type="source" position={sourcePosition} className="handle" />
+
+      <style>{`
         .pipeline-node-item {
           background: var(--color-bg-primary);
           color: var(--color-text-primary);
           border: 1px solid var(--color-border);
           border-radius: 12px;
           padding: 12px;
-          width: 200px;
+          width: 220px;
           box-shadow: 0 4px 6px var(--color-shadow);
           transition: all 0.3s ease;
           position: relative;
@@ -107,6 +289,10 @@ export const PipelineNodeItem = ({ data }: NodeProps) => {
           pointer-events: none;
           animation: selectedPulse 2s infinite;
         }
+
+        .pipeline-node-item.artifact.selected::after {
+            border-radius: 32px;
+        }
         
         @keyframes selectedPulse {
           0%, 100% { opacity: 1; }
@@ -122,11 +308,88 @@ export const PipelineNodeItem = ({ data }: NodeProps) => {
           padding-bottom: 8px;
         }
         .node-title {
+          flex: 1;
           font-weight: 600;
           font-size: 14px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+        .node-action {
+          cursor: pointer;
+          opacity: 0.6;
+          display: flex;
+          align-items: center;
+          transition: opacity 0.2s;
+        }
+        .node-action:hover {
+          opacity: 1;
+        }
+        .node-params-wrapper {
+          position: relative;
+          margin-top: 4px;
+        }
+        .params-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: rgba(242, 13, 99, 0.1);
+          border: 1px solid rgba(242, 13, 99, 0.3);
+          border-radius: 10px;
+          padding: 2px 8px;
+          font-size: 10px;
+          color: #f20d63;
+          cursor: pointer;
+        }
+        .params-dropdown {
+          margin-top: 4px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+          padding: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .param-item {
+          display: flex;
+          justify-content: space-between;
+          font-size: 9px;
+          gap: 8px;
+        }
+        .param-key {
+          color: #a0aec0;
+        }
+        .param-val {
+          color: #fff;
+          font-weight: 500;
+        }
+        .code-viewer {
+          margin-top: 8px;
+          background: #1a1b26;
+          border-radius: 6px;
+          border: 1px solid #2b2e3c;
+          overflow: hidden;
+        }
+        .code-header {
+          background: #24283b;
+          padding: 4px 8px;
+          font-size: 9px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: #7982a9;
+          border-bottom: 1px solid #2b2e3c;
+        }
+        .code-snippet {
+          margin: 0;
+          padding: 8px;
+          font-size: 10px;
+          color: #a9b1d6;
+          font-family: 'Fira Code', monospace;
+          white-space: pre;
+          overflow-x: auto;
+          max-height: 150px;
         }
         .node-body {
           font-size: 11px;
@@ -146,6 +409,6 @@ export const PipelineNodeItem = ({ data }: NodeProps) => {
           border: 2px solid var(--color-bg-primary) !important;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 };
