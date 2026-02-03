@@ -80,3 +80,29 @@ body {
 .react-flow__minimap mask rect {
   fill: var(--color-bg-secondary) !important;
 }
+
+/* Pipeline Animation Styles */
+
+/* Sweep overlay for processing nodes */
+.sweep-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to left, transparent, rgba(242, 13, 99, 0.4), transparent);
+  background-size: 200% 100%;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Node status styles */
+.pipeline-node-item.processing {
+  border-color: #f20d63;
+  box-shadow: 0 0 20px rgba(242, 13, 99, 0.4);
+}
+
+.pipeline-node-item.failed {
+  border-color: #891fff;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+}

@@ -62,8 +62,10 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "@types/animejs": "^3.1.13",
     "@types/dagre": "^0.7.53",
     "@types/js-yaml": "^4.0.5",
+    "animejs": "^4.3.5",
     "dagre": "^0.8.5",
     "framer-motion": "^12.31.0",
     "html-to-image": "^1.11.11",
