@@ -53,7 +53,7 @@ const sweepVariants = {
 
 export const PipelineNodeItem = ({ data, id }: NodeProps) => {
   const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false, type } = data;
-  const [isCodeExpanded, setIsCodeExpanded] = useState(false);
+  const [isDepsExpanded, setIsDepsExpanded] = useState(false);
   const [isParamsExpanded, setIsParamsExpanded] = useState(false);
 
   const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
@@ -248,11 +248,7 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           {getStatusIcon()}
         </div>
         <div className="node-title" title={data.label}>{data.label}</div>
-        {data.codeDeps && data.codeDeps.length > 0 && (
-          <div className="node-action" onClick={(e) => { e.stopPropagation(); setIsCodeExpanded(!isCodeExpanded); }}>
-            <ChevronRight size={16} style={{ transform: isCodeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
-          </div>
-        )}
+        {/* Remove the chevron toggle from header since we'll use a badge below */}
       </div>
 
       <div className="node-body">
@@ -275,35 +271,44 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           </div>
         )}
 
-        {data.params && Object.keys(data.params).length > 0 && (
-          <div className="node-params-wrapper">
-            <div className="params-badge" onClick={(e) => { e.stopPropagation(); setIsParamsExpanded(!isParamsExpanded); }}>
-              <List size={10} />
-              <span>Params</span>
-              <ChevronDown size={10} style={{ transform: isParamsExpanded ? 'rotate(180deg)' : 'none' }} />
-            </div>
-            {isParamsExpanded && (
-              <div className="params-dropdown">
-                {Object.entries(data.params).map(([key, val]: [string, any]) => (
-                  <div key={key} className="param-item">
-                    <span className="param-key">{key}:</span>
-                    <span className="param-val">{typeof val === 'object' ? '{...}' : String(val)}</span>
-                  </div>
-                ))}
+        {((data.params && Object.keys(data.params).length > 0) || (data.codeDeps && data.codeDeps.length > 0)) && (
+          <div className="node-badges-row">
+            {data.params && Object.keys(data.params).length > 0 && (
+              <div className="params-badge" onClick={(e) => { e.stopPropagation(); setIsParamsExpanded(!isParamsExpanded); }}>
+                <List size={10} />
+                <span>Params</span>
+                <ChevronDown size={10} style={{ transform: isParamsExpanded ? 'rotate(180deg)' : 'none' }} />
+              </div>
+            )}
+            {data.codeDeps && data.codeDeps.length > 0 && (
+              <div className="deps-badge" onClick={(e) => { e.stopPropagation(); setIsDepsExpanded(!isDepsExpanded); }}>
+                <FileCode size={10} />
+                <span>Deps</span>
+                <ChevronDown size={10} style={{ transform: isDepsExpanded ? 'rotate(180deg)' : 'none' }} />
               </div>
             )}
           </div>
         )}
 
-        {isCodeExpanded && data.codeDeps && data.codeDeps.length > 0 && (
-          <div className="code-viewer">
-            <div className="code-header">
-              <FileCode size={10} />
-              <span>{data.codeDeps[0].path}</span>
-            </div>
-            <pre className="code-snippet">
-              {data.codeDeps[0].snippet}
-            </pre>
+        {isParamsExpanded && data.params && Object.keys(data.params).length > 0 && (
+          <div className="params-dropdown">
+            {Object.entries(data.params).map(([key, val]: [string, any]) => (
+              <div key={key} className="param-item">
+                <span className="param-key">{key}:</span>
+                <span className="param-val">{typeof val === 'object' ? '{...}' : String(val)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isDepsExpanded && data.codeDeps && data.codeDeps.length > 0 && (
+          <div className="params-dropdown">
+            {data.codeDeps.map((dep: any, index: number) => (
+              <div key={index} className="param-item">
+                <span className="param-key">{dep.path.split('/').pop()}</span>
+                <span className="param-val" title={dep.path}>{dep.path}</span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -399,11 +404,13 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         .node-action:hover {
           opacity: 1;
         }
-        .node-params-wrapper {
-          position: relative;
+        .node-badges-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
           margin-top: 4px;
         }
-        .params-badge {
+        .params-badge, .deps-badge {
           display: inline-flex;
           align-items: center;
           gap: 4px;
@@ -414,6 +421,12 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           font-size: 10px;
           color: #f20d63;
           cursor: pointer;
+          width: fit-content;
+        }
+        .deps-badge {
+          background: rgba(128, 31, 239, 0.1);
+          border-color: rgba(128, 31, 239, 0.3);
+          color: #891fff;
         }
         .params-dropdown {
           margin-top: 4px;
@@ -424,47 +437,28 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           flex-direction: column;
           gap: 2px;
           border: 1px solid rgba(255, 255, 255, 0.05);
+          max-width: 100%;
+          overflow: hidden;
         }
         .param-item {
           display: flex;
           justify-content: space-between;
           font-size: 9px;
           gap: 8px;
+          overflow: hidden;
         }
         .param-key {
           color: #a0aec0;
+          white-space: nowrap;
         }
         .param-val {
           color: #fff;
           font-weight: 500;
-        }
-        .code-viewer {
-          margin-top: 8px;
-          background: #1a1b26;
-          border-radius: 6px;
-          border: 1px solid #2b2e3c;
+          white-space: nowrap;
           overflow: hidden;
+          text-overflow: ellipsis;
         }
-        .code-header {
-          background: #24283b;
-          padding: 4px 8px;
-          font-size: 9px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: #7982a9;
-          border-bottom: 1px solid #2b2e3c;
-        }
-        .code-snippet {
-          margin: 0;
-          padding: 8px;
-          font-size: 10px;
-          color: #a9b1d6;
-          font-family: 'Fira Code', monospace;
-          white-space: pre;
-          overflow-x: auto;
-          max-height: 150px;
-        }
+
         .node-body {
           font-size: 11px;
           color: #a0aec0;
