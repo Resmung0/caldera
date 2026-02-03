@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { IconType } from 'react-icons';
 import {
   SiLangchain,
   SiDvc,
@@ -11,7 +12,16 @@ import {
   SiUipath
 } from 'react-icons/si';
 
-const iconMap: { [key: string]: React.ElementType } = {
+const ANIMATION_CONFIG = {
+  rotate: 360,
+  transition: {
+    duration: 20,
+    repeat: Infinity,
+    ease: "linear"
+  }
+};
+
+const iconMap: Record<string, IconType> = {
   'langchain': SiLangchain,
   'dvc': SiDvc,
   'airflow': SiApacheairflow,
@@ -22,13 +32,36 @@ const iconMap: { [key: string]: React.ElementType } = {
   'uipath': SiUipath,
 };
 
+const radius = 120;
+
+function getOrbitPosition(index: number, total: number) {
+  const angle = (index / total) * 2 * Math.PI;
+  const x = Math.cos(angle) * radius;
+  const y = Math.sin(angle) * radius;
+  return { x, y };
+}
+
+interface ToolTagProps {
+  tool: string;
+  className?: string;
+}
+
+const ToolTag: React.FC<ToolTagProps> = ({ tool, className }) => {
+  const Icon = iconMap[tool.toLowerCase()] || AlertTriangle;
+  return (
+    <span className={`empty-state-tool-tag ${className || ''}`}>
+      <Icon size={16} />
+      <span>{tool}</span>
+    </span>
+  );
+};
+
 interface EmptyStateProps {
   category: string;
   tools: string[];
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ category, tools }) => {
-  const radius = 120;
   const isOrbiting = tools.length > 1;
 
   return (
@@ -45,34 +78,24 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ category, tools }) => {
           <div className="orbit-wrapper">
             <motion.div
               className="orbit-container"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              animate={{ rotate: ANIMATION_CONFIG.rotate }}
+              transition={ANIMATION_CONFIG.transition}
             >
               {tools.map((tool, index) => {
-                const Icon = iconMap[tool.toLowerCase()] || AlertTriangle;
-                const angle = (index / tools.length) * 2 * Math.PI;
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius;
-
+                const { x, y } = getOrbitPosition(index, tools.length);
                 return (
                   <div
                     key={tool}
                     className="orbit-item"
                     style={{
-                      position: 'absolute',
-                      left: '50%',
-                      top: '50%',
                       transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
                     }}
                   >
                     <motion.div
-                      className="empty-state-tool-tag"
-                      animate={{ rotate: -360 }}
-                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}
+                      animate={{ rotate: -ANIMATION_CONFIG.rotate }}
+                      transition={ANIMATION_CONFIG.transition}
                     >
-                      <Icon size={16} />
-                      <span>{tool}</span>
+                      <ToolTag tool={tool} className="orbiting" />
                     </motion.div>
                   </div>
                 );
@@ -80,15 +103,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ category, tools }) => {
             </motion.div>
           </div>
         ) : (
-          tools.map(tool => {
-            const Icon = iconMap[tool.toLowerCase()] || AlertTriangle;
-            return (
-              <span key={tool} className="empty-state-tool-tag" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Icon size={16} />
-                {tool}
-              </span>
-            );
-          })
+          tools.map(tool => (
+            <ToolTag key={tool} tool={tool} />
+          ))
         )}
       </div>
       <style>{`
@@ -149,7 +166,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ category, tools }) => {
           width: 0;
           height: 0;
         }
+        .orbit-item {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+        }
         .empty-state-tool-tag {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           padding: 8px 16px;
           border-radius: 6px;
           background-color: #181B28;
@@ -158,6 +183,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ category, tools }) => {
           font-weight: 500;
           border: 1px solid #3e3e42;
           transition: all 0.2s ease;
+        }
+        .empty-state-tool-tag.orbiting {
+          white-space: nowrap;
         }
         .empty-state-tool-tag:hover {
           background-color: #1f2332;
