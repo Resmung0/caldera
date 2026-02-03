@@ -5,6 +5,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  CircleDashed,
   Terminal,
   GitBranch,
   ChevronDown,
@@ -63,11 +64,11 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
 
   const getStatusIcon = () => {
     switch (data.status) {
-      case 'success': return <CheckCircle size={16} color="#4ade80" />;
-      case 'failed': return <XCircle size={16} color="#891fff" />;
+      case 'success': return <CheckCircle size={14} color="#4ade80" />;
+      case 'failed': return <XCircle size={14} color="#891fff" />;
       case 'running':
-      case 'processing': return <Clock size={16} color="#f20d63" />;
-      default: return <Terminal size={16} color="#a0aec0" />;
+      case 'processing': return <Clock size={14} color="#f20d63" />;
+      default: return <CircleDashed size={14} color="#a0aec0" />;
     }
   };
 
@@ -245,7 +246,7 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
 
       <div className="node-header">
         <div className="node-icon">
-          {getStatusIcon()}
+          <Terminal size={16} color="#a0aec0" />
         </div>
         <div className="node-title" title={data.label}>{data.label}</div>
         {/* Remove the chevron toggle from header since we'll use a badge below */}
@@ -313,7 +314,8 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         )}
 
         <div className="node-status">
-          {data.status || 'Idle'}
+          {getStatusIcon()}
+          <span>{data.status || 'Idle'}</span>
         </div>
       </div>
 
@@ -475,6 +477,12 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           width: 8px !important;
           height: 8px !important;
           border: 2px solid var(--color-bg-primary) !important;
+        }
+
+        .node-status {
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
       `}</style>
     </motion.div>
