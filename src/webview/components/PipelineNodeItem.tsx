@@ -12,7 +12,8 @@ import {
   ChevronRight,
   FileCode,
   List,
-  Folder
+  Folder,
+  Sparkles
 } from 'lucide-react';
 import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
 import { FiDatabase } from 'react-icons/fi';
@@ -50,6 +51,34 @@ const sweepVariants = {
     },
   },
   exit: { opacity: 0, transition: { duration: 0.2 } },
+};
+
+// Sparkle animation variants
+const sparklesContainerVariants = {
+  initial: {},
+  animate: {
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+const sparkleVariants = {
+  initial: { opacity: 0, scale: 0, x: 0, y: 0 },
+  animate: (custom: number) => {
+    const angle = (custom * 45 * Math.PI) / 180;
+    const distance = 25;
+    return {
+      opacity: [0, 1, 0],
+      scale: [0, 1.2, 0],
+      x: Math.cos(angle) * distance,
+      y: Math.sin(angle) * distance,
+      transition: {
+        duration: 0.8,
+        ease: "easeOut" as const,
+      }
+    };
+  }
 };
 
 export const PipelineNodeItem = ({ data, id }: NodeProps) => {
@@ -96,8 +125,31 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         animate={animationStatus}
       >
         <Handle type="target" position={targetPosition} className="handle" />
-
-
+        {isSuccess && (
+          <motion.div
+            className="sparkles-container"
+            variants={sparklesContainerVariants}
+            initial="initial"
+            animate="animate"
+            style={{ position: 'absolute', top: '50%', left: '50%', pointerEvents: 'none', zIndex: 10 }}
+          >
+            {[...Array(8)].map((_, i) => (
+              <motion.div
+                key={i}
+                custom={i}
+                variants={sparkleVariants}
+                style={{
+                  position: 'absolute',
+                  width: 4,
+                  height: 4,
+                  borderRadius: '50%',
+                  background: '#4ade80',
+                  boxShadow: '0 0 4px #4ade80'
+                }}
+              />
+            ))}
+          </motion.div>
+        )}
 
         <div className="artifact-header">
           <div className="artifact-header-icon">
@@ -109,7 +161,7 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         <div className="artifact-body">
           {isSuccess && (
             <div className="artifact-badge success">
-              <CheckCircle size={8} />
+              <Sparkles size={8} />
               <span>Materialized</span>
             </div>
           )}
@@ -141,7 +193,9 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
                         display: flex;
                         flex-direction: column;
                         transition: all 0.3s ease;
-                        overflow: hidden;
+                        transition: all 0.3s ease;
+                        overflow: visible;
+                        position: relative;
                     }
 
                     .artifact-header {
