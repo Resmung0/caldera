@@ -91,24 +91,13 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
   if (isArtifact) {
     return (
       <motion.div
-        className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${isProcessing ? 'processing' : ''} ${isFailed ? 'failed' : ''} ${isSuccess ? 'success' : ''}`}
+        className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${isFailed ? 'failed' : ''} ${isSuccess ? 'success' : ''}`}
         variants={nodeVariants}
         animate={animationStatus}
       >
         <Handle type="target" position={targetPosition} className="handle" />
 
-        {/* Sweep overlay for processing */}
-        <AnimatePresence>
-          {isProcessing && (
-            <motion.div
-              className="sweep-overlay"
-              variants={sweepVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            />
-          )}
-        </AnimatePresence>
+
 
         <div className="artifact-header">
           <div className="artifact-header-icon">
@@ -118,6 +107,12 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         </div>
 
         <div className="artifact-body">
+          {isSuccess && (
+            <div className="artifact-badge success">
+              <CheckCircle size={8} />
+              <span>Materialized</span>
+            </div>
+          )}
           {data.dataType && data.dataType !== 'other' && (
             <div className="artifact-badge">
               {getDataTypeIcon(data.dataType)}
@@ -198,6 +193,12 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
                         text-transform: capitalize;
                         width: fit-content;
                         line-height: 1;
+                    }
+
+                    .artifact-badge.success {
+                        color: #4ade80;
+                        border-color: rgba(74, 222, 128, 0.2);
+                        background: rgba(74, 222, 128, 0.05);
                     }
 
                     .folder-preview {
