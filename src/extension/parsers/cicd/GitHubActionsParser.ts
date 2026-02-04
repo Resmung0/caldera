@@ -6,7 +6,9 @@ export class GitHubActionsParser implements IParser {
     name = 'GitHub Action';
 
     canParse(fileName: string, content: string): boolean {
-        return fileName.endsWith('.yml') || fileName.endsWith('.yaml');
+        const normalizedPath = fileName.replace(/\\/g, '/');
+        return normalizedPath.includes('.github/workflows/') &&
+            (normalizedPath.endsWith('.yml') || normalizedPath.endsWith('.yaml'));
     }
 
     async parse(content: string, filePath: string): Promise<PipelineData> {
