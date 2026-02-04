@@ -7,7 +7,12 @@ export class GitHubActionsParser implements IParser {
 
     canParse(fileName: string, content: string): boolean {
         const normalizedPath = fileName.replace(/\\/g, '/');
-        return normalizedPath.includes('.github/workflows/') &&
+        const segments = normalizedPath.split('/');
+        const workflowsIndex = segments.indexOf('workflows');
+        const githubIndex = segments.indexOf('.github');
+
+        return githubIndex !== -1 &&
+            workflowsIndex === githubIndex + 1 &&
             (normalizedPath.endsWith('.yml') || normalizedPath.endsWith('.yaml'));
     }
 

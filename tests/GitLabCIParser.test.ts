@@ -10,8 +10,11 @@ describe('GitLabCIParser', () => {
   it('should identify .gitlab-ci.yml files', () => {
     expect(parser.canParse('.gitlab-ci.yml', '')).toBe(true);
     expect(parser.canParse('.gitlab-ci.yaml', '')).toBe(true);
+    expect(parser.canParse('/path/to/.gitlab-ci.yml', '')).toBe(true);
     expect(parser.canParse('.gitlab/ci/build.yml', '')).toBe(true);
     expect(parser.canParse('other.yml', '')).toBe(false);
+    expect(parser.canParse('.gitlab/not-ci/build.yml', '')).toBe(false);
+    expect(parser.canParse('gitlab/ci/build.yml', '')).toBe(false);
   });
 
   it('should extract jobs as nodes', async () => {
@@ -59,6 +62,20 @@ job2:
     expect(result.edges[0].target).toBe('job2');
   });
 
+  it('should ignore dangling dependencies from needs', async () => {
+    const yaml = `
+job1:
+  stage: build
+  script: echo "hello"
+job2:
+  stage: test
+  script: echo "world"
+  needs: ["non-existent-job"]
+`;
+    const result = await parser.parse(yaml, '.gitlab-ci.yml');
+    expect(result.edges).toHaveLength(0);
+  });
+
   it('should handle implicit stage dependencies', async () => {
     const yaml = `
 stages:
@@ -95,6 +112,30 @@ job3:
     expect(result.edges).toHaveLength(1);
     expect(result.edges[0].source).toBe('job1');
     expect(result.edges[0].target).toBe('job3');
+  });
+
+  it('should create dependencies to all previous stages', async () => {
+    const yaml = `
+stages:
+  - build
+  - test
+  - deploy
+job1:
+  stage: build
+  script: echo "b"
+job2:
+  stage: test
+  script: echo "t"
+job3:
+  stage: deploy
+  script: echo "d"
+`;
+    const result = await parser.parse(yaml, '.gitlab-ci.yml');
+    // job2 depends on job1 (1 edge)
+    // job3 depends on job2 AND job1 (2 edges)
+    // total edges: 3
+    expect(result.edges).toHaveLength(3);
+    expect(result.edges.filter(e => e.target === 'job3')).toHaveLength(2);
   });
 
   it('should not add implicit dependencies if needs is an empty array', async () => {
