@@ -9,7 +9,6 @@ import {
   Terminal,
   GitBranch,
   ChevronDown,
-  ChevronRight,
   FileCode,
   List,
   Folder,
@@ -54,30 +53,21 @@ const sweepVariants = {
 };
 
 // Sparkle animation variants
-const sparklesContainerVariants = {
-  initial: {},
-  animate: {
-    transition: {
-      staggerChildren: 0.05,
-    },
+// Ripple animation variants for artifact materialization
+const rippleVariants = {
+  initial: {
+    opacity: 0.8,
+    scale: 1,
+    borderWidth: "2px"
   },
-};
-
-const sparkleVariants = {
-  initial: { opacity: 0, scale: 0, x: 0, y: 0 },
-  animate: (custom: number) => {
-    const angle = (custom * 45 * Math.PI) / 180;
-    const distance = 25;
-    return {
-      opacity: [0, 1, 0],
-      scale: [0, 1.2, 0],
-      x: Math.cos(angle) * distance,
-      y: Math.sin(angle) * distance,
-      transition: {
-        duration: 0.8,
-        ease: "easeOut" as const,
-      }
-    };
+  animate: {
+    opacity: 0,
+    scale: 1.5,
+    borderWidth: "0px",
+    transition: {
+      duration: 1.5,
+      ease: "easeOut" as const
+    }
   }
 };
 
@@ -127,28 +117,23 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         <Handle type="target" position={targetPosition} className="handle" />
         {isSuccess && (
           <motion.div
-            className="sparkles-container"
-            variants={sparklesContainerVariants}
+            className="materialize-ripple"
+            variants={rippleVariants}
             initial="initial"
             animate="animate"
-            style={{ position: 'absolute', top: '50%', left: '50%', pointerEvents: 'none', zIndex: 10 }}
-          >
-            {[...Array(8)].map((_, i) => (
-              <motion.div
-                key={i}
-                custom={i}
-                variants={sparkleVariants}
-                style={{
-                  position: 'absolute',
-                  width: 4,
-                  height: 4,
-                  borderRadius: '50%',
-                  background: '#4ade80',
-                  boxShadow: '0 0 4px #4ade80'
-                }}
-              />
-            ))}
-          </motion.div>
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              borderRadius: '18px',
+              border: '2px solid #f20d63',
+              boxShadow: '0 0 10px rgba(242, 13, 99, 0.5)',
+              pointerEvents: 'none',
+              zIndex: -1
+            }}
+          />
         )}
 
         <div className="artifact-header">
@@ -250,8 +235,8 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
                     }
 
                     .artifact-badge.success {
-                        color: #4ade80;
-                        border-color: rgba(74, 222, 128, 0.2);
+                        color: #801fef;
+                        border-color: rgba(128, 31, 239, 0.2);
                         background: rgba(74, 222, 128, 0.05);
                     }
 
