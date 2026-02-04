@@ -6,7 +6,14 @@ export class GitHubActionsParser implements IParser {
     name = 'GitHub Action';
 
     canParse(fileName: string, content: string): boolean {
-        return fileName.endsWith('.yml') || fileName.endsWith('.yaml');
+        const normalizedPath = fileName.replace(/\\/g, '/');
+        const segments = normalizedPath.split('/');
+        const workflowsIndex = segments.indexOf('workflows');
+        const githubIndex = segments.indexOf('.github');
+
+        return githubIndex !== -1 &&
+            workflowsIndex === githubIndex + 1 &&
+            (normalizedPath.endsWith('.yml') || normalizedPath.endsWith('.yaml'));
     }
 
     async parse(content: string, filePath: string): Promise<PipelineData> {
