@@ -55,7 +55,7 @@ Like the center of an **active volcano**, Caldera centralizes complex flows in a
 
 Caldera's visual identity is designed to be both modern and functional, ensuring optimal readability and visual appeal during extended development sessions. The color palette is carefully chosen to provide clear contrast and intuitive status recognition. 
 
-> [!INFO]
+> [!NOTE]
 > Currently, the extension theme is based on the Lucid Volcano theme.
 
 | Color | Hex Code | Usage |

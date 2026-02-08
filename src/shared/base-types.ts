@@ -1,10 +1,3 @@
-export enum PipelineType {
-  CICD = 'cicd',
-  DataProcessing = 'data-processing',
-  AIAgent = 'ai-agent',
-  RPA = 'rpa',
-}
-
 export enum PipelinePatternType {
   CICD = 'cicd',
   DATA_PROCESSING = 'data-processing',

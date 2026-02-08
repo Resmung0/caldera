@@ -1,6 +1,5 @@
 
 import { DVCParser } from '../src/extension/parsers/data-processing/DVCParser';
-import * as path from 'path';
 
 // Mock dependencies
 jest.mock('fs');

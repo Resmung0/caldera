@@ -1,7 +1,6 @@
 import {
   PipelineAnnotation,
   AnnotationState,
-  SelectionState,
   PipelinePatternType,
   AnnotationColorScheme
 } from '../types';
