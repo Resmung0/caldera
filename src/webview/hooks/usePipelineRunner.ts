@@ -43,33 +43,50 @@ export type PipelineStatus = 'idle' | 'processing' | 'success' | 'failed';
  * ```
  */
 export function buildExecutionPlan(nodes: Node[], edges: Edge[]): string[] {
-    // Find root nodes (nodes with no incoming edges)
-    const hasIncoming = new Set(edges.map((e) => e.target));
-    const rootNodes = nodes
-        .map((n) => n.id)
-        .filter((id) => !hasIncoming.has(id));
+    // 1. Calculate in-degrees for all nodes
+    const inDegree = new Map<string, number>();
+    nodes.forEach(n => inDegree.set(n.id, 0));
 
-    // Perform BFS traversal to build execution order
-    const visited = new Set<string>();
-    const queue = [...rootNodes];
+    edges.forEach(e => {
+        if (inDegree.has(e.target)) {
+            inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1);
+        }
+    });
+
+    // 2. Initialize queue with all nodes having in-degree 0
+    const queue: string[] = [];
+    nodes.forEach(n => {
+        if (inDegree.get(n.id) === 0) {
+            queue.push(n.id);
+        }
+    });
+
+    // 3. Process the queue (Kahn's Algorithm)
     const executionPlan: string[] = [];
+    const visited = new Set<string>();
 
     while (queue.length > 0) {
+        // Sort queue to ensure deterministic behavior (optional but good for testing)
+        // Here we just shift to maintain BFS-like behavior for levels
         const nodeId = queue.shift()!;
-        
-        // Skip if already visited
-        if (visited.has(nodeId)) {
-            continue;
-        }
-        
+
+        if (visited.has(nodeId)) continue;
         visited.add(nodeId);
         executionPlan.push(nodeId);
 
-        // Queue outgoing nodes (nodes that depend on this one)
-        const outgoingEdges = edges.filter((e) => e.source === nodeId);
-        outgoingEdges.forEach((e) => {
-            if (!visited.has(e.target)) {
-                queue.push(e.target);
+        // Find all outgoing edges from this node
+        const outgoingEdges = edges.filter(e => e.source === nodeId);
+
+        outgoingEdges.forEach(e => {
+            const targetId = e.target;
+            if (inDegree.has(targetId)) {
+                const newInDegree = (inDegree.get(targetId) || 1) - 1;
+                inDegree.set(targetId, newInDegree);
+
+                // If in-degree becomes 0, it's ready to be processed
+                if (newInDegree === 0) {
+                    queue.push(targetId);
+                }
             }
         });
     }

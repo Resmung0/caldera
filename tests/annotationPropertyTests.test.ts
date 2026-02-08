@@ -10,7 +10,6 @@ import {
 } from '../src/shared/selection/SelectionManager';
 import {
   PipelineNode,
-  PipelineAnnotation,
   PipelinePatternType
 } from '../src/shared/types';
 import {

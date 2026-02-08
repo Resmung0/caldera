@@ -28,8 +28,11 @@ export const NodeDropdown: React.FC<NodeDropdownProps> = ({
         if (Array.isArray(items)) {
             return items.map((item, index) => {
                 // Handle list items which might be objects like { path: ... } or strings
-                const displayKey = item && item.path ? item.path.split('/').pop() : String(index + 1);
-                const displayVal = item && item.path ? item.path : String(item);
+                const hasPath = item && typeof item === 'object' && 'path' in item;
+                const pathVal = hasPath ? String((item as any).path) : null;
+                const displayKey = pathVal !== null ? (pathVal.split('/').pop() || pathVal) : String(index + 1);
+                const displayVal = pathVal !== null ? pathVal : (item && typeof item === 'object' ? '{...}' : String(item));
+
                 return (
                     <div key={index} className="param-item">
                         <span className="param-key">{displayKey}</span>
@@ -39,14 +42,17 @@ export const NodeDropdown: React.FC<NodeDropdownProps> = ({
             });
         }
 
-        return Object.entries(items).map(([key, val]) => (
-            <div key={key} className="param-item">
-                <span className="param-key">{key}:</span>
-                <span className="param-val" title={String(val)}>
-                    {typeof val === 'object' ? '{...}' : String(val)}
-                </span>
-            </div>
-        ));
+        return Object.entries(items).map(([key, val]) => {
+            const displayVal = typeof val === 'object' ? '{...}' : String(val);
+            return (
+                <div key={key} className="param-item">
+                    <span className="param-key">{key}:</span>
+                    <span className="param-val" title={displayVal}>
+                        {displayVal}
+                    </span>
+                </div>
+            );
+        });
     };
 
     return (
