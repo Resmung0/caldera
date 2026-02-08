@@ -7,7 +7,7 @@ import { CICDPipeline } from './pipelines/CICDPipeline';
 import { DataProcessingPipeline } from './pipelines/DataProcessingPipeline';
 import { AIAgentPipeline } from './pipelines/AIAgentPipeline';
 import { RPAPipeline } from './pipelines/RPAPipeline';
-import { PipelineType } from '../shared/types';
+import { PipelinePatternType } from '../shared/types';
 import { LOG_PREFIX } from './constants';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -70,8 +70,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('caldera.selectCategory', (category: string) => {
-            if (Object.values(PipelineType).includes(category as PipelineType)) {
-                provider.pipelineType = category as PipelineType;
+            if (Object.values(PipelinePatternType).includes(category as PipelinePatternType)) {
+                provider.pipelineType = category as PipelinePatternType;
                 discover();
             } else {
                 console.error(`${LOG_PREFIX} ❌ Invalid category received: ${category}`);

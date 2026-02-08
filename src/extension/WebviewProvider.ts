@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { PipelineData, PipelineType, WebViewMessage } from '../shared/types';
+import { PipelineData, PipelinePatternType, WebViewMessage } from '../shared/types';
 import { LOG_PREFIX } from './constants';
 
 export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
@@ -9,7 +9,7 @@ export class PipelineWebviewProvider implements vscode.WebviewViewProvider {
     private _cachedPipelineData?: PipelineData;
     private _availablePipelines: string[] = [];
     private _isLoading: boolean = false;
-    public pipelineType: PipelineType = PipelineType.CICD;
+    public pipelineType: PipelinePatternType = PipelinePatternType.CICD;
 
     constructor(private readonly _extensionUri: vscode.Uri) { }
 

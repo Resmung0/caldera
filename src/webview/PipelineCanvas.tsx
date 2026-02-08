@@ -13,8 +13,8 @@ import ReactFlow, {
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
-import { PipelineData, PipelinePatternType } from '../shared/types';
-import { EmptyState } from './EmptyState';
+import { PipelineData } from '../shared/types';
+import { EmptyState } from './components/EmptyState';
 import { AnnotatorButton } from './components/AnnotatorButton';
 import { PatternSelector } from './components/PatternSelector';
 import { AnnotationLayer } from './components/AnnotationLayer';

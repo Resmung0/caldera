@@ -1,11 +1,11 @@
 import { IParser } from "../parsers/IParser";
-import { PipelineType } from "../../shared/types";
+import { PipelinePatternType } from "../../shared/types";
 
 export interface ParserWithPatterns extends IParser {
   patterns: string[];
 }
 
 export interface IPipeline {
-  type: PipelineType;
+  type: PipelinePatternType;
   parsers: ParserWithPatterns[];
 }
