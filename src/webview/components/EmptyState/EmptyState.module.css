@@ -1,0 +1,123 @@
+.emptyStateContainer {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  color: #cccccc;
+  background-color: #181b28;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+.emptyStateIcon {
+  margin-bottom: 24px;
+  color: #ffcc02;
+  filter: drop-shadow(0 0 8px rgba(255, 204, 2, 0.3));
+  position: relative;
+  z-index: 10;
+}
+
+.emptyStateTitle {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 400;
+  color: #ffffff;
+  line-height: 1.4;
+  max-width: 600px;
+  position: relative;
+  z-index: 10;
+}
+
+.emptyStateSubtitle {
+  margin: 0 0 24px 0;
+  font-size: 14px;
+  color: #9d9d9d;
+  line-height: 1.5;
+  max-width: 500px;
+  position: relative;
+  z-index: 10;
+}
+
+.orbitSystemContainer {
+  position: relative;
+  width: var(--orbit-container-size, 400px);
+  height: var(--orbit-container-size, 400px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.orbitCenterMarker {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #f20d63;
+  border-radius: 50%;
+  box-shadow: 0 0 20px #f20d63;
+  z-index: 5;
+}
+
+.orbitPathCircle {
+  position: absolute;
+  width: var(--orbit-size, 320px);
+  height: var(--orbit-size, 320px);
+  border: 1px dashed rgba(71, 76, 96, 0.3);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orbitRotator {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orbitPlanet {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center;
+}
+
+.orbitPlanetContent {
+  background-color: #1f2332;
+  border: 1px solid #3e3e42;
+  padding: 10px 18px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #eeeeee;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+}
+
+.orbitPlanetContent:hover {
+  border-color: #f20d63;
+  box-shadow: 0 0 15px rgba(242, 13, 99, 0.4);
+  color: #ffffff;
+  cursor: pointer;
+  z-index: 100;
+}
+
+.planetIcon {
+  font-size: 18px;
+  color: #f20d63;
+}
+
+.planetLabel {
+  display: inline-flex;
+  align-items: center;
+}
