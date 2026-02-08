@@ -56,10 +56,25 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
                     } as React.CSSProperties
                 }
             >
-                {/* Central Logo */}
-                <div className={styles.orbitCenterLogo}>
+                {/* Central Logo with Breathe Animation */}
+                <motion.div
+                    className={styles.orbitCenterLogo}
+                    animate={{
+                        scale: [1, 1.1, 1],
+                        filter: [
+                            "drop-shadow(0 0 15px rgba(242, 13, 99, 0.3))",
+                            "drop-shadow(0 0 35px rgba(242, 13, 99, 0.7))",
+                            "drop-shadow(0 0 15px rgba(242, 13, 99, 0.3))"
+                        ],
+                    }}
+                    transition={{
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                >
                     <Logo size={64} />
-                </div>
+                </motion.div>
 
                 {/* The Orbit Path Visual */}
                 <div className={styles.orbitPathCircle} />
