@@ -53,14 +53,23 @@
   margin-top: 20px;
 }
 
-.orbitCenterMarker {
+.orbitCenterLogo {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  background-color: #f20d63;
-  border-radius: 50%;
-  box-shadow: 0 0 20px #f20d63;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 15px rgba(242, 13, 99, 0.4));
+  animation: logo-float 4s ease-in-out infinite;
+}
+
+@keyframes logo-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 .orbitPathCircle {

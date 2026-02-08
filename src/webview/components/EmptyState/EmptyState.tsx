@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react';
 import { getToolIcon } from '../../toolIcons';
 import styles from './EmptyState.module.css';
 import { EmptyStateProps } from './EmptyState.types';
+import { Logo } from '../Logo';
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
     category,
@@ -55,8 +56,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
                     } as React.CSSProperties
                 }
             >
-                {/* Central marker/sun */}
-                <div className={styles.orbitCenterMarker} />
+                {/* Central Logo */}
+                <div className={styles.orbitCenterLogo}>
+                    <Logo size={64} />
+                </div>
 
                 {/* The Orbit Path Visual */}
                 <div className={styles.orbitPathCircle} />

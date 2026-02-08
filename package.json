@@ -11,12 +11,10 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:pipeline.view",
     "onStartupFinished"
   ],
   "main": "./dist/extension/extension.js",
   "contributes": {
-
     "commands": [
       {
         "command": "caldera.runPipeline",
@@ -38,7 +36,8 @@
         {
           "type": "webview",
           "id": "pipeline.view",
-          "name": "Live Preview"
+          "name": "Pipeline Viewer",
+          "icon": "./public/icons/dark-icon.svg"
         }
       ]
     }
