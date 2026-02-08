@@ -237,7 +237,7 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
                     .artifact-badge.success {
                         color: #801fef;
                         border-color: rgba(128, 31, 239, 0.2);
-                        background: rgba(74, 222, 128, 0.05);
+                        background: rgba(128, 31, 239, 0.1);
                     }
 
                     .folder-preview {
