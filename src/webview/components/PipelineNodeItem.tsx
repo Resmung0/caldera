@@ -17,6 +17,55 @@ import {
 import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
 import { FiDatabase } from 'react-icons/fi';
 import { LuImage, LuTable2, LuVideo, LuMusic4 } from 'react-icons/lu';
+import { NodeDropdown } from './NodeDropdown';
+
+/**
+ * Centralized configuration for pipeline node status rendering.
+ * Maps each status to its visual properties (icon, color, animation, styling).
+ * 
+ * @property icon - The Lucide icon component to display for this status
+ * @property iconColor - The hex color code for the icon
+ * @property animationVariant - The animation variant key from nodeVariants
+ * @property className - CSS class name to apply for this status
+ * @property showSweep - Whether to display the sweep overlay animation
+ */
+const STATUS_CONFIG = {
+  idle: {
+    icon: CircleDashed,
+    iconColor: '#a0aec0',
+    animationVariant: 'idle' as const,
+    className: '',
+    showSweep: false,
+  },
+  processing: {
+    icon: Clock,
+    iconColor: '#f20d63',
+    animationVariant: 'idle' as const,
+    className: 'processing',
+    showSweep: true,
+  },
+  running: {
+    icon: Clock,
+    iconColor: '#f20d63',
+    animationVariant: 'idle' as const,
+    className: 'processing',
+    showSweep: true,
+  },
+  success: {
+    icon: CheckCircle,
+    iconColor: '#4ade80',
+    animationVariant: 'success' as const,
+    className: 'success',
+    showSweep: false,
+  },
+  failed: {
+    icon: XCircle,
+    iconColor: '#891fff',
+    animationVariant: 'failed' as const,
+    className: 'failed',
+    showSweep: false,
+  },
+} as const;
 
 // Animation variants for node status
 const nodeVariants = {
@@ -81,20 +130,10 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
 
   const isArtifact = type === 'artifact';
 
-  const getStatusIcon = () => {
-    switch (data.status) {
-      case 'success': return <CheckCircle size={14} color="#4ade80" />;
-      case 'failed': return <XCircle size={14} color="#891fff" />;
-      case 'running':
-      case 'processing': return <Clock size={14} color="#f20d63" />;
-      default: return <CircleDashed size={14} color="#a0aec0" />;
-    }
-  };
-
-  const isProcessing = data.status === 'running' || data.status === 'processing';
-  const isFailed = data.status === 'failed';
-  const isSuccess = data.status === 'success';
-  const animationStatus = isFailed ? 'failed' : isSuccess ? 'success' : 'idle';
+  // Use STATUS_CONFIG for all status-related rendering
+  const status = (data.status || 'idle') as keyof typeof STATUS_CONFIG;
+  const config = STATUS_CONFIG[status];
+  const StatusIcon = config.icon;
 
   const getDataTypeIcon = (dataType: string) => {
     switch (dataType) {
@@ -110,12 +149,12 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
   if (isArtifact) {
     return (
       <motion.div
-        className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${isFailed ? 'failed' : ''} ${isSuccess ? 'success' : ''}`}
+        className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${config.className}`}
         variants={nodeVariants}
-        animate={animationStatus}
+        animate={config.animationVariant}
       >
         <Handle type="target" position={targetPosition} className="handle" />
-        {isSuccess && (
+        {status === 'success' && (
           <motion.div
             className="materialize-ripple"
             variants={rippleVariants}
@@ -144,7 +183,7 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         </div>
 
         <div className="artifact-body">
-          {isSuccess && (
+          {status === 'success' && (
             <div className="artifact-badge success">
               <Sparkles size={8} />
               <span>Materialized</span>
@@ -265,15 +304,15 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
 
   return (
     <motion.div
-      className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${isProcessing ? 'processing' : ''} ${isFailed ? 'failed' : ''} ${isSuccess ? 'success' : ''}`}
+      className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${config.className}`}
       variants={nodeVariants}
-      animate={animationStatus}
+      animate={config.animationVariant}
     >
       <Handle type="target" position={targetPosition} className="handle" />
 
       {/* Sweep overlay for processing */}
       <AnimatePresence>
-        {isProcessing && (
+        {config.showSweep && (
           <motion.div
             className="sweep-overlay"
             variants={sweepVariants}
@@ -315,46 +354,30 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         {((data.params && Object.keys(data.params).length > 0) || (data.codeDeps && data.codeDeps.length > 0)) && (
           <div className="node-badges-row">
             {data.params && Object.keys(data.params).length > 0 && (
-              <div className="params-badge" onClick={(e) => { e.stopPropagation(); setIsParamsExpanded(!isParamsExpanded); }}>
-                <List size={10} />
-                <span>Params</span>
-                <ChevronDown size={10} style={{ transform: isParamsExpanded ? 'rotate(180deg)' : 'none' }} />
-              </div>
+              <NodeDropdown
+                icon={List}
+                label="Params"
+                isExpanded={isParamsExpanded}
+                onToggle={(e) => { e.stopPropagation(); setIsParamsExpanded(!isParamsExpanded); }}
+                items={data.params}
+                variant="params"
+              />
             )}
             {data.codeDeps && data.codeDeps.length > 0 && (
-              <div className="deps-badge" onClick={(e) => { e.stopPropagation(); setIsDepsExpanded(!isDepsExpanded); }}>
-                <FileCode size={10} />
-                <span>Deps</span>
-                <ChevronDown size={10} style={{ transform: isDepsExpanded ? 'rotate(180deg)' : 'none' }} />
-              </div>
+              <NodeDropdown
+                icon={FileCode}
+                label="Deps"
+                isExpanded={isDepsExpanded}
+                onToggle={(e) => { e.stopPropagation(); setIsDepsExpanded(!isDepsExpanded); }}
+                items={data.codeDeps}
+                variant="deps"
+              />
             )}
-          </div>
-        )}
-
-        {isParamsExpanded && data.params && Object.keys(data.params).length > 0 && (
-          <div className="params-dropdown">
-            {Object.entries(data.params).map(([key, val]: [string, any]) => (
-              <div key={key} className="param-item">
-                <span className="param-key">{key}:</span>
-                <span className="param-val">{typeof val === 'object' ? '{...}' : String(val)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {isDepsExpanded && data.codeDeps && data.codeDeps.length > 0 && (
-          <div className="params-dropdown">
-            {data.codeDeps.map((dep: any, index: number) => (
-              <div key={index} className="param-item">
-                <span className="param-key">{dep.path.split('/').pop()}</span>
-                <span className="param-val" title={dep.path}>{dep.path}</span>
-              </div>
-            ))}
           </div>
         )}
 
         <div className="node-status">
-          {getStatusIcon()}
+          <StatusIcon size={14} color={config.iconColor} />
           <span>{data.status || 'Idle'}</span>
         </div>
       </div>
@@ -449,56 +472,9 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
         .node-badges-row {
           display: flex;
           flex-wrap: wrap;
+          align-items: flex-start;
           gap: 6px;
           margin-top: 4px;
-        }
-        .params-badge, .deps-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          background: rgba(242, 13, 99, 0.1);
-          border: 1px solid rgba(242, 13, 99, 0.3);
-          border-radius: 10px;
-          padding: 2px 8px;
-          font-size: 10px;
-          color: #f20d63;
-          cursor: pointer;
-          width: fit-content;
-        }
-        .deps-badge {
-          background: rgba(128, 31, 239, 0.1);
-          border-color: rgba(128, 31, 239, 0.3);
-          color: #891fff;
-        }
-        .params-dropdown {
-          margin-top: 4px;
-          background: rgba(0, 0, 0, 0.2);
-          border-radius: 6px;
-          padding: 6px;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          max-width: 100%;
-          overflow: hidden;
-        }
-        .param-item {
-          display: flex;
-          justify-content: space-between;
-          font-size: 9px;
-          gap: 8px;
-          overflow: hidden;
-        }
-        .param-key {
-          color: #a0aec0;
-          white-space: nowrap;
-        }
-        .param-val {
-          color: #fff;
-          font-weight: 500;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
         }
 
         .node-body {
