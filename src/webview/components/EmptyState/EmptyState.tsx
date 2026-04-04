@@ -5,6 +5,7 @@ import { getToolIcon } from '../../toolIcons';
 import styles from './EmptyState.module.css';
 import { EmptyStateProps } from './EmptyState.types';
 import { Logo } from '../Logo';
+import { AnimatedMatrixBackground } from '../AnimatedMatrixBackground';
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
     category,
@@ -33,79 +34,82 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             role="status"
             aria-label="No pipeline files found"
         >
-            <AlertTriangle
-                size={48}
-                className={styles.emptyStateIcon}
-                aria-hidden="true"
-                focusable="false"
-            />
-            <h2 className={styles.emptyStateTitle}>
-                No pipeline files for category '{category}' were found.
-            </h2>
-            <p className={styles.emptyStateSubtitle}>
-                We recommend you create a pipeline file for one of the following tools to enable visualization:
-            </p>
+            <AnimatedMatrixBackground variant="dots" />
+            <div className={styles.emptyStateContent}>
+                <AlertTriangle
+                    size={48}
+                    className={styles.emptyStateIcon}
+                    aria-hidden="true"
+                    focusable="false"
+                />
+                <h2 className={styles.emptyStateTitle}>
+                    No pipeline files for category '{category}' were found.
+                </h2>
+                <p className={styles.emptyStateSubtitle}>
+                    We recommend you create a pipeline file for one of the following tools to enable visualization:
+                </p>
 
-            <div
-                className={styles.orbitSystemContainer}
-                style={
-                    {
-                        '--orbit-container-size': `${containerSize}px`,
-                        '--orbit-size': `${orbitSize}px`,
-                        '--orbit-radius': `${orbitRadius}px`,
-                    } as React.CSSProperties
-                }
-            >
-                {/* Central Logo with Breathe Animation */}
-                <motion.div
-                    className={styles.orbitCenterLogo}
-                    animate={{
-                        scale: [1, 1.1, 1],
-                        filter: [
-                            "drop-shadow(0 0 15px rgba(242, 13, 99, 0.3))",
-                            "drop-shadow(0 0 35px rgba(242, 13, 99, 0.7))",
-                            "drop-shadow(0 0 15px rgba(242, 13, 99, 0.3))"
-                        ],
-                    }}
-                    transition={{
-                        duration: 4,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                    }}
+                <div
+                    className={styles.orbitSystemContainer}
+                    style={
+                        {
+                            '--orbit-container-size': `${containerSize}px`,
+                            '--orbit-size': `${orbitSize}px`,
+                            '--orbit-radius': `${orbitRadius}px`,
+                        } as React.CSSProperties
+                    }
                 >
-                    <Logo size={64} />
-                </motion.div>
-
-                {/* The Orbit Path Visual */}
-                <div className={styles.orbitPathCircle} />
-
-                {/* Rotating Container */}
-                {planetConfigs.length > 0 && (
+                    {/* Central Logo with Breathe Animation */}
                     <motion.div
-                        className={styles.orbitRotator}
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                        className={styles.orbitCenterLogo}
+                        animate={{
+                            scale: [1, 1.1, 1],
+                            filter: [
+                                "drop-shadow(0 0 15px rgba(242, 13, 99, 0.3))",
+                                "drop-shadow(0 0 35px rgba(242, 13, 99, 0.7))",
+                                "drop-shadow(0 0 15px rgba(242, 13, 99, 0.3))"
+                            ],
+                        }}
+                        transition={{
+                            duration: 4,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                        }}
                     >
-                        {planetConfigs.map(({ tool, Icon, angle }) => (
-                            <div
-                                key={tool}
-                                className={styles.orbitPlanet}
-                                style={{
-                                    transform: `rotate(${angle}deg) translate(${orbitRadius}px)`,
-                                }}
-                            >
-                                <motion.div
-                                    className={styles.orbitPlanetContent}
-                                    animate={{ rotate: [-angle, -angle - 360] }}
-                                    transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-                                >
-                                    {Icon && <Icon className={styles.planetIcon} />}
-                                    <span className={styles.planetLabel}>{tool}</span>
-                                </motion.div>
-                            </div>
-                        ))}
+                        <Logo size={64} />
                     </motion.div>
-                )}
+
+                    {/* The Orbit Path Visual */}
+                    <div className={styles.orbitPathCircle} />
+
+                    {/* Rotating Container */}
+                    {planetConfigs.length > 0 && (
+                        <motion.div
+                            className={styles.orbitRotator}
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                        >
+                            {planetConfigs.map(({ tool, Icon, angle }) => (
+                                <div
+                                    key={tool}
+                                    className={styles.orbitPlanet}
+                                    style={{
+                                        transform: `rotate(${angle}deg) translate(${orbitRadius}px)`,
+                                    }}
+                                >
+                                    <motion.div
+                                        className={styles.orbitPlanetContent}
+                                        animate={{ rotate: [-angle, -angle - 360] }}
+                                        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                                    >
+                                        {Icon && <Icon className={styles.planetIcon} />}
+                                        <span className={styles.planetLabel}>{tool}</span>
+                                    </motion.div>
+                                </div>
+                            ))}
+                        </motion.div>
+                    )}
+                </div>
             </div>
         </section>
     );

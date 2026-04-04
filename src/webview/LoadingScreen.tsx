@@ -1,14 +1,18 @@
 import React from 'react';
+import { AnimatedMatrixBackground } from './components/AnimatedMatrixBackground';
 
 export const LoadingScreen: React.FC = () => {
   return (
     <div className="loading-container">
-      <div className="radar">
-        <div className="pulse"></div>
-        <div className="pulse"></div>
-        <div className="pulse"></div>
+      <AnimatedMatrixBackground variant="characters" />
+      <div className="loading-content">
+        <div className="radar">
+          <div className="pulse"></div>
+          <div className="pulse"></div>
+          <div className="pulse"></div>
+        </div>
+        <div className="loading-text">Caldera is scanning for pipeline tools...</div>
       </div>
-      <div className="loading-text">Caldera is scanning for pipeline tools...</div>
       <style>{`
         .loading-container {
           display: flex;
@@ -19,6 +23,15 @@ export const LoadingScreen: React.FC = () => {
           background: #181B28;
           color: #f20d63;
           font-family: sans-serif;
+          position: relative;
+          overflow: hidden;
+        }
+        .loading-content {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
         .radar {
           position: relative;
