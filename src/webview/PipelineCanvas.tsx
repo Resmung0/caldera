@@ -9,7 +9,10 @@ import ReactFlow, {
     useEdgesState,
     ConnectionLineType,
     MarkerType,
-    NodeProps
+    NodeProps,
+    applyNodeChanges,
+    NodeChange,
+    Node
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
@@ -39,6 +42,82 @@ const nodeWidth = 220;
 const nodeHeight = 80;
 
 // --- Layout Logic ---
+
+const resolveOverlaps = (nodes: Node[], changes: NodeChange[]): Node[] => {
+    const PADDING = 20;
+    const draggingNodeIds = new Set(changes.filter(c => c.type === 'position' && (c as any).dragging).map(c => c.id));
+    const resizingNodeIds = new Set(changes.filter(c => c.type === 'dimensions').map(c => c.id));
+    
+    // Create a copy for mutating
+    const resolvedNodes = nodes.map(n => ({ ...n, position: { ...n.position } }));
+    
+    // We only resolve if there are actual width/height values
+    const hasDimensions = resolvedNodes.every(n => n.width && n.height);
+    if (!hasDimensions) return resolvedNodes;
+
+    // Iterative relaxation
+    for (let i = 0; i < 10; i++) {
+        let hasOverlap = false;
+
+        for (let j = 0; j < resolvedNodes.length; j++) {
+            for (let k = j + 1; k < resolvedNodes.length; k++) {
+                const nodeA = resolvedNodes[j];
+                const nodeB = resolvedNodes[k];
+
+                const wA = nodeA.width || 220;
+                const hA = nodeA.height || 80;
+                const wB = nodeB.width || 220;
+                const hB = nodeB.height || 80;
+
+                const centerA = { x: nodeA.position.x + wA / 2, y: nodeA.position.y + hA / 2 };
+                const centerB = { x: nodeB.position.x + wB / 2, y: nodeB.position.y + hB / 2 };
+
+                const dx = centerB.x - centerA.x;
+                const dy = centerB.y - centerA.y;
+
+                const minDx = (wA + wB) / 2 + PADDING;
+                const minDy = (hA + hB) / 2 + PADDING;
+
+                if (Math.abs(dx) < minDx && Math.abs(dy) < minDy) {
+                    hasOverlap = true;
+                    
+                    const overlapX = minDx - Math.abs(dx);
+                    const overlapY = minDy - Math.abs(dy);
+                    
+                    const isDraggingA = draggingNodeIds.has(nodeA.id);
+                    const isDraggingB = draggingNodeIds.has(nodeB.id);
+                    const isResizingA = resizingNodeIds.has(nodeA.id);
+                    const isResizingB = resizingNodeIds.has(nodeB.id);
+
+                    let ratioA = 0.5;
+                    let ratioB = 0.5;
+                    
+                    if (isDraggingA && !isDraggingB) { ratioA = 0; ratioB = 1; }
+                    else if (!isDraggingA && isDraggingB) { ratioA = 1; ratioB = 0; }
+                    else if (isResizingA && !isResizingB) { ratioA = 0; ratioB = 1; }
+                    else if (!isResizingA && isResizingB) { ratioA = 1; ratioB = 0; }
+
+                    if (overlapX < overlapY) {
+                        const shiftX = overlapX;
+                        const dir = dx > 0 ? 1 : -1; 
+                        
+                        nodeA.position.x -= shiftX * ratioA * dir;
+                        nodeB.position.x += shiftX * ratioB * dir;
+                    } else {
+                        const shiftY = overlapY;
+                        const dir = dy > 0 ? 1 : -1;
+                        
+                        nodeA.position.y -= shiftY * ratioA * dir;
+                        nodeB.position.y += shiftY * ratioB * dir;
+                    }
+                }
+            }
+        }
+        if (!hasOverlap) break;
+    }
+
+    return resolvedNodes;
+};
 
 const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
     if (nodes.length === 0) return { nodes: [], edges: [] };
@@ -88,7 +167,18 @@ interface PipelineCanvasProps {
 }
 
 export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availablePipelines, onPipelineSelect, onCategorySelect, onNotify }) => {
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [nodes, setNodes] = useNodesState([]);
+    
+    const handleNodesChange = useCallback((changes: NodeChange[]) => {
+        setNodes((nds) => {
+            const nextNodes = applyNodeChanges(changes, nds);
+            const needsResolution = changes.some(c => c.type === 'position' || c.type === 'dimensions');
+            if (needsResolution) {
+                return resolveOverlaps(nextNodes as Node[], changes);
+            }
+            return nextNodes;
+        });
+    }, [setNodes]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
     const [activeCategory, setActiveCategory] = useState<string>('cicd');
@@ -269,7 +359,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                 edges={edges}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
-                onNodesChange={onNodesChange}
+                onNodesChange={handleNodesChange}
                 onEdgesChange={onEdgesChange}
                 onPaneClick={handleCanvasClick}
                 panOnDrag={!selectionState.isSelectionMode}
