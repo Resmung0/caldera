@@ -16,10 +16,6 @@ export const PipelineSelectorPanel: React.FC<PipelineSelectorPanelProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    if (!availablePipelines || availablePipelines.length <= 1) {
-        return null;
-    }
-
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -33,6 +29,10 @@ export const PipelineSelectorPanel: React.FC<PipelineSelectorPanelProps> = ({
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    if (!availablePipelines || availablePipelines.length <= 1) {
+        return null;
+    }
 
     const currentFileName = currentPipeline ? currentPipeline.split('/').pop() : '';
 
