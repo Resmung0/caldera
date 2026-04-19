@@ -38,6 +38,10 @@ export const PipelineSelectorPanel: React.FC<PipelineSelectorPanelProps> = ({
         return null;
     }
 
+    if (!availablePipelines || availablePipelines.length <= 1) {
+        return null;
+    }
+
     const currentFileName = currentPipeline ? currentPipeline.split('/').pop() : '';
 
     return (
