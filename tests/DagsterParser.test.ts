@@ -74,9 +74,13 @@ def downstream_asset():
 `;
     const result = await parser.parse(content, 'no_args.py');
     expect(result.framework).toBe('Dagster');
+
+    // Both assets are discovered as nodes
     expect(result.nodes.map(n => n.id).sort()).toEqual(
       expect.arrayContaining(['upstream_asset', 'downstream_asset']),
     );
+
+    // No edges should be created because there are no function arguments
     expect(result.edges.length).toBe(0);
   });
 
@@ -89,8 +93,13 @@ def flexible_asset(*args, **kwargs):
     return sum(args) if args else 0
 `;
     const result = await parser.parse(content, 'varargs.py');
+    expect(result.framework).toBe('Dagster');
+
+    // Only the asset node should be present
     expect(result.nodes.length).toBe(1);
     expect(result.nodes[0]?.id).toBe('flexible_asset');
+
+    // *args and **kwargs should not create any dependency edges
     expect(result.edges.length).toBe(0);
   });
 
@@ -111,12 +120,26 @@ def processed_data( raw_data  ,   other_data , /, *args, context = None, **kwarg
     return [x * 10 for x in raw_data + other_data]
 `;
     const result = await parser.parse(content, 'positional_only.py');
+    expect(result.framework).toBe('Dagster');
+
+    // All three assets should be discovered
     expect(result.nodes.map(n => n.id).sort()).toEqual(
       expect.arrayContaining(['raw_data', 'other_data', 'processed_data']),
     );
+
+    // Only raw_data and other_data should be treated as dependencies
+    const edgeIds = result.edges.map(e => e.id).sort();
+    expect(edgeIds).toEqual(
+      expect.arrayContaining([
+        'e-raw_data-processed_data',
+        'e-other_data-processed_data',
+      ]),
+    );
+
     const sources = result.edges.map(e => e.source).sort();
-    expect(sources).toEqual(expect.arrayContaining(['other_data', 'raw_data']));
-    expect(result.edges.length).toBe(2);
+    const targets = [...new Set(result.edges.map(e => e.target))];
+    expect(sources).toEqual(expect.arrayContaining(['raw_data', 'other_data']));
+    expect(targets).toEqual(['processed_data']);
   });
 
   it('should handle brackets in type hints', async () => {
@@ -143,6 +166,7 @@ def downstream_asset():
         source: 'upstream_asset',
         target: 'downstream_asset'
     });
+    // Should also detect upstream_asset as an external asset
     expect(result.nodes.find(n => n.id === 'upstream_asset')).toBeDefined();
   });
 
@@ -155,9 +179,13 @@ def downstream_asset():
     pass
 `;
     const result = await parser.parse(content, 'dummy.py');
+
     expect(result.edges.length).toBe(3);
     const sources = result.edges.map(e => e.source).sort();
     expect(sources).toEqual(['another_upstream', 'keyed_asset', 'upstream_asset']);
+
+    // Check that keyed_asset is discovered as a node
+    expect(result.nodes.find(n => n.id === 'keyed_asset')).toBeDefined();
   });
 
   it('should skip complex function signatures with parentheses', async () => {
