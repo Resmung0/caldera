@@ -162,12 +162,12 @@ def downstream_asset():
     const result = await parser.parse(content, 'dummy.py');
     expect(result.edges.length).toBe(1);
     expect(result.edges[0]).toEqual({
-        id: 'e-upstream_asset-downstream_asset',
-        source: 'upstream_asset',
-        target: 'downstream_asset'
+      id: 'e-upstream_asset-downstream_asset',
+      source: 'upstream_asset',
+      target: 'downstream_asset',
     });
     // Should also detect upstream_asset as an external asset
-    expect(result.nodes.find(n => n.id === 'upstream_asset')).toBeDefined();
+    expect(result.nodes.find((n) => n.id === 'upstream_asset')).toBeDefined();
   });
 
   it('should parse multiple deps and AssetKey deps in decorator', async () => {
@@ -181,11 +181,30 @@ def downstream_asset():
     const result = await parser.parse(content, 'dummy.py');
 
     expect(result.edges.length).toBe(3);
-    const sources = result.edges.map(e => e.source).sort();
-    expect(sources).toEqual(['another_upstream', 'keyed_asset', 'upstream_asset']);
+    expect(result.edges).toEqual(
+      expect.arrayContaining([
+        {
+          id: 'e-upstream_asset-downstream_asset',
+          source: 'upstream_asset',
+          target: 'downstream_asset',
+        },
+        {
+          id: 'e-another_upstream-downstream_asset',
+          source: 'another_upstream',
+          target: 'downstream_asset',
+        },
+        {
+          id: 'e-keyed_asset-downstream_asset',
+          source: 'keyed_asset',
+          target: 'downstream_asset',
+        },
+      ]),
+    );
 
-    // Check that keyed_asset is discovered as a node
-    expect(result.nodes.find(n => n.id === 'keyed_asset')).toBeDefined();
+    // All upstream assets (including AssetKey-based) should be detected as external assets
+    ['upstream_asset', 'another_upstream', 'keyed_asset'].forEach((id) => {
+      expect(result.nodes.find((n) => n.id === id)).toBeDefined();
+    });
   });
 
   it('should skip complex function signatures with parentheses', async () => {
