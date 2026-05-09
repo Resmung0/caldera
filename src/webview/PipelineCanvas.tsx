@@ -323,7 +323,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
-                    <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
+                    <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} isRunning={isRunning} />
                     <EmptyState category={data.category} tools={data.tools} />
                 </div>
             );
@@ -341,7 +341,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                 justifyContent: 'center',
                 color: 'var(--color-text-primary)'
             }}>
-                <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
+                <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} isRunning={isRunning} />
                 <div style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }}>📊</div>
                 <div style={{ marginTop: '0.5rem', color: '#666' }}>
                     Waiting for pipeline data...
@@ -352,7 +352,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
 
     return (
         <div style={{ width: '100%', height: '100vh', background: 'var(--color-bg-tertiary)' }}>
-            <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
+            <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} isRunning={isRunning} />
 
             <ReactFlow
                 nodes={nodes}
