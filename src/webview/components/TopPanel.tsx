@@ -5,10 +5,10 @@ import { Workflow, Sparkle, Bot, Activity } from 'lucide-react';
 interface TopPanelProps {
     onCategorySelect: (category: string) => void;
     activeCategory: string;
-    isRunning?: boolean;
+    isRunning: boolean;
 }
 
-export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCategory, isRunning = false }) => {
+export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCategory, isRunning }) => {
     const [activeContext, setActiveContext] = useState<string>(activeCategory || 'cicd');
 
     // Update local state when activeCategory prop changes
@@ -56,8 +56,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCate
                                     />
                                 )}
                             </AnimatePresence>
-                            <Icon size={16} style={{ position: 'relative', zIndex: 1 }} />
-                            <span className="tab-label" style={{ position: 'relative', zIndex: 1 }}>{ctx.label}</span>
+                            <span className="tab-content">
+                                <Icon size={16} />
+                                <span className="tab-label">{ctx.label}</span>
+                            </span>
                         </button>
                         {!isLast && <div className="separator">|</div>}
                     </React.Fragment>
@@ -82,19 +84,25 @@ export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCate
         .context-tab {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
+          padding: 0;
           background: transparent;
           border: none;
           color: rgba(255, 255, 255, 0.6);
           cursor: pointer;
           transition: all 0.2s ease;
-          font-size: 12px;
-          font-weight: 500;
-          white-space: nowrap;
           position: relative;
           border-radius: 6px;
           overflow: hidden;
+        }
+        .tab-content {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 12px;
+          position: relative;
+          z-index: 1;
+          width: 100%;
+          height: 100%;
         }
         .context-tab:hover:not(.active) {
           color: rgba(255, 255, 255, 0.8);
