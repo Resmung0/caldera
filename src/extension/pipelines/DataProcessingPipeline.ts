@@ -11,6 +11,16 @@ export class DataProcessingPipeline implements IPipeline {
     Object.assign(new AirflowParser(), { patterns: ['**/dags/*.py'] }),
     Object.assign(new KedroParser(), { patterns: ['**/src/**/pipeline.py', '**/src/**/pipelines/**/pipeline.py'] }),
     Object.assign(new DVCParser(), { patterns: ['**/dvc.yaml', '**/dvc.yml'] }),
-    Object.assign(new DagsterParser(), { patterns: ['**/*.py'] }),
+    Object.assign(new DagsterParser(), {
+      patterns: [
+        '**/dagster_*/**/*.py', // common Dagster project/package prefix
+        '**/*_dagster.py',      // files explicitly named for Dagster usage
+        '**/*assets.py',        // Dagster assets modules
+        '**/*jobs.py',          // Dagster jobs definitions
+        '**/*schedules.py',     // Dagster schedules
+        '**/*sensors.py',       // Dagster sensors
+        '**/*repository.py',    // Dagster repository definitions
+      ],
+    }),
   ];
 }

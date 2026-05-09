@@ -4,16 +4,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, GitBranch, List, FileCode, ChevronDown, ChevronRight, CheckCircle2, Circle, Clock, AlertCircle, Database } from 'lucide-react';
 import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
 
-interface NodeDropdownProps {
-  icon: any;
+type NodeDropdownCommonProps = {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   label: string;
-  items: any;
   isExpanded: boolean;
   onToggle: (e: React.MouseEvent) => void;
-  variant: 'params' | 'deps';
-}
+};
 
-const NodeDropdown: React.FC<NodeDropdownProps> = ({ icon: Icon, label, items, isExpanded, onToggle, variant }) => {
+type NodeDropdownParamsProps = NodeDropdownCommonProps & {
+  variant: 'params';
+  items: Record<string, unknown>;
+};
+
+type NodeDropdownDepsItem = {
+  path: string;
+  snippet?: string;
+};
+
+type NodeDropdownDepsProps = NodeDropdownCommonProps & {
+  variant: 'deps';
+  items: NodeDropdownDepsItem[];
+};
+
+type NodeDropdownProps = NodeDropdownParamsProps | NodeDropdownDepsProps;
+
+const NodeDropdown: React.FC<NodeDropdownProps> = (props) => {
+  const { icon: Icon, label, items, isExpanded, onToggle, variant } = props;
   return (
     <div className={`node-dropdown ${variant}`}>
       <div className="dropdown-trigger" onClick={onToggle}>
@@ -30,14 +46,14 @@ const NodeDropdown: React.FC<NodeDropdownProps> = ({ icon: Icon, label, items, i
             className="dropdown-content"
           >
             {variant === 'params' ? (
-              Object.entries(items).map(([key, value]: [string, any]) => (
+              Object.entries(items).map(([key, value]) => (
                 <div key={key} className="dropdown-item">
                   <span className="item-key">{key}:</span>
                   <span className="item-value">{JSON.stringify(value)}</span>
                 </div>
               ))
             ) : (
-              (items as any[]).map((dep, idx) => (
+              (items as NodeDropdownDepsItem[]).map((dep, idx) => (
                 <div key={idx} className="dropdown-item dep-item">
                   <div className="dep-path">{dep.path}</div>
                   {dep.snippet && <pre className="dep-snippet"><code>{dep.snippet}</code></pre>}
@@ -51,7 +67,7 @@ const NodeDropdown: React.FC<NodeDropdownProps> = ({ icon: Icon, label, items, i
   );
 };
 
-export const PipelineNodeItem: React.FC<NodeProps> = ({ data, selected, targetPosition = Position.Top, sourcePosition = Position.Bottom }) => {
+export const PipelineNodeItem: React.FC<NodeProps> = ({ type, data, selected, targetPosition = Position.Top, sourcePosition = Position.Bottom }) => {
   const [isParamsExpanded, setIsParamsExpanded] = useState(false);
   const [isDepsExpanded, setIsDepsExpanded] = useState(false);
 
@@ -73,12 +89,13 @@ export const PipelineNodeItem: React.FC<NodeProps> = ({ data, selected, targetPo
   const getStatusConfig = (status?: string) => {
     switch (status) {
       case 'running':
+      case 'processing':
         return {
           icon: Clock,
           color: '#3b82f6',
           animationVariant: { scale: [1, 1.02, 1], transition: { repeat: Infinity, duration: 2 } },
           showSweep: true,
-          className: 'running',
+          className: status,
           iconColor: '#3b82f6'
         };
       case 'success':
@@ -93,7 +110,7 @@ export const PipelineNodeItem: React.FC<NodeProps> = ({ data, selected, targetPo
   const config = getStatusConfig(data.status);
   const StatusIcon = config.icon;
 
-  if (data.type === 'artifact') {
+  if (type === 'artifact') {
     return (
       <motion.div
         className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}
