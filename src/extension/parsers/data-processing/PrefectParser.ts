@@ -7,8 +7,8 @@ export class PrefectParser implements IParser {
   canParse(fileName: string, content: string): boolean {
     return (
       fileName.endsWith(".py") &&
-      content.includes("from prefect import") &&
-      content.includes("@flow")
+      /import\s+prefect|from\s+prefect/.test(content) &&
+      (/@(?:prefect\.)?flow/.test(content) || /@\w+/.test(content))
     );
   }
 
@@ -16,81 +16,8 @@ export class PrefectParser implements IParser {
     const nodes: PipelineNode[] = [];
     const edges: PipelineEdge[] = [];
 
-    // 1. Identify tasks
-    // Regex to find @task decorated functions: @task\s+def\s+(\w+)
-    const taskRegex = /@task(?:\([^)]*\))?\s+def\s+(\w+)/g;
-    const taskNames: string[] = [];
-    let match;
-    while ((match = taskRegex.exec(content)) !== null) {
-      taskNames.push(match[1]);
-      nodes.push({
-        id: match[1],
-        label: match[1],
-        type: 'default',
-        data: { framework: this.name }
-      });
-    }
-
-    // 2. Identify the flow and its body
-    const flowRegex = /@flow(?:\([^)]*\))?\s+def\s+(\w+)\s*\([^)]*\):([\s\S]+?)(?=\n\S|$)/g;
-    const flowMatch = flowRegex.exec(content);
-    if (flowMatch) {
-      const flowBody = flowMatch[2];
-
-      // 3. Find task calls and dependencies in the flow body
-      // We look for assignments like: var = task_name(...) or task_name(...)
-      // and wait_for=[...]
-
-      const varToTask = new Map<string, string>();
-
-      // Split body into lines to process roughly in order
-      const lines = flowBody.split('\n');
-      for (const line of lines) {
-        // Look for assignment: var = task_name.submit(...) or var = task_name(...)
-        for (const taskName of taskNames) {
-          const assignmentRegex = new RegExp(`(\\w+)\\s*=\\s*${taskName}(?:\\.submit)?\\s*\\(`);
-          const assignMatch = line.match(assignmentRegex);
-          if (assignMatch) {
-            varToTask.set(assignMatch[1], taskName);
-          }
-
-          // Look for dependencies: task_name(..., var, ...) or task_name(..., wait_for=[..., var, ...])
-          const callRegex = new RegExp(`${taskName}(?:\\.submit)?\\s*\\(([^)]*)\\)`);
-          const callMatch = line.match(callRegex);
-          if (callMatch) {
-            const args = callMatch[1];
-
-            // Check for variables in args that map to tasks
-            varToTask.forEach((sourceTask, variable) => {
-              if (args.includes(variable)) {
-                const edgeId = `e-${sourceTask}-${taskName}`;
-                if (!edges.find(e => e.id === edgeId)) {
-                  edges.push({
-                    id: edgeId,
-                    source: sourceTask,
-                    target: taskName
-                  });
-                }
-              }
-            });
-
-            // Check for direct calls like task2(task1())
-            for (const otherTask of taskNames) {
-              if (otherTask !== taskName && args.includes(`${otherTask}(`)) {
-                 const edgeId = `e-${otherTask}-${taskName}`;
-                 if (!edges.find(e => e.id === edgeId)) {
-                    edges.push({
-                      id: edgeId,
-                      source: otherTask,
-                      target: taskName
-                    });
-                 }
-              }
-            }
-          }
-        }
-      }
-    }
+    const taskNames = this.extractTasks(content, nodes);
+    this.extractEdgesFromFlows(content, taskNames, edges);
 
     return {
       filePath,
@@ -98,5 +25,115 @@ export class PrefectParser implements IParser {
       nodes,
       edges,
     };
+  }
+
+  private extractTasks(content: string, nodes: PipelineNode[]): string[] {
+    // Detect task names from @task or @prefect.task or @any_var (if it was imported from prefect)
+    // For simplicity, we still look for @task/@prefect.task OR assume any decorator might be it if prefect is imported
+    // But let's stick to identifying common patterns or just look for 'def' after ANY decorator if we want to be very loose.
+    // The review mentioned '@f' if 'flow as f'.
+
+    const taskRegex = /@(?:\w+\.)?(?:task|\w+)(?:\([^)]*\))?\s+def\s+(\w+)/g;
+    const taskNames: string[] = [];
+    let match;
+    while ((match = taskRegex.exec(content)) !== null) {
+      const name = match[1];
+      // Avoid duplicates and avoid matching flow names as tasks (though they often use same decorators)
+      // Actually, we want to distinguish flows from tasks.
+      // Usually @task is for tasks, @flow for flows.
+      // If we see @f, is it a flow or a task?
+      // Let's improve the task extraction to be more specific if possible.
+
+      if (match[0].includes('task') || !match[0].includes('flow')) {
+          taskNames.push(name);
+          nodes.push({
+            id: name,
+            label: name,
+            type: 'default',
+            data: { framework: this.name }
+          });
+      }
+    }
+    return [...new Set(taskNames)];
+  }
+
+  private extractEdgesFromFlows(content: string, taskNames: string[], edges: PipelineEdge[]): void {
+    // Loosen flow regex to match any decorator followed by def
+    const flowRegex = /@(?:\w+\.)?(?:flow|\w+)(?:\([^)]*\))?\s+def\s+(\w+)\s*\([^)]*\):([\s\S]+?)(?=\n\S|$)/g;
+    let flowMatch;
+
+    // Precompute regexes to avoid per-line allocation
+    const assignmentRegexes = taskNames.map(t => ({
+      task: t,
+      re: new RegExp(`(\\w+)\\s*=\\s*${t}(?:\\.submit)?\\s*\\(`)
+    }));
+    const callRegexes = taskNames.map(t => ({
+      task: t,
+      re: new RegExp(`${t}(?:\\.submit)?\\s*\\(([^)]*)\\)`)
+    }));
+
+    while ((flowMatch = flowRegex.exec(content)) !== null) {
+      const flowBody = flowMatch[2];
+      const lines = flowBody.split('\n');
+      const varToTask = this.buildVarToTaskMap(lines, assignmentRegexes);
+      this.extractEdgesFromLines(lines, taskNames, varToTask, callRegexes, edges);
+    }
+  }
+
+  private buildVarToTaskMap(lines: string[], assignmentRegexes: { task: string, re: RegExp }[]): Map<string, string> {
+    const varToTask = new Map<string, string>();
+    for (const line of lines) {
+      for (const { task, re } of assignmentRegexes) {
+        const m = line.match(re);
+        if (m) {
+          varToTask.set(m[1], task);
+        }
+      }
+    }
+    return varToTask;
+  }
+
+  private extractEdgesFromLines(
+    lines: string[],
+    taskNames: string[],
+    varToTask: Map<string, string>,
+    callRegexes: { task: string, re: RegExp }[],
+    edges: PipelineEdge[]
+  ): void {
+    const ensureEdge = (source: string, target: string) => {
+      const id = `e-${source}-${target}`;
+      if (!edges.some(e => e.id === id)) {
+        edges.push({ id, source, target });
+      }
+    };
+
+    // Precompute var regexes for this flow
+    const varRegexes: { sourceTask: string, re: RegExp }[] = [];
+    varToTask.forEach((sourceTask, variable) => {
+      varRegexes.push({ sourceTask, re: new RegExp(`\\b${variable}\\b`) });
+    });
+
+    for (const line of lines) {
+      for (const { task: targetTask, re } of callRegexes) {
+        const callMatch = line.match(re);
+        if (!callMatch) continue;
+
+        const args = callMatch[1];
+
+        // vars -> tasks
+        for (const { sourceTask, re: vRe } of varRegexes) {
+          if (vRe.test(args)) {
+            ensureEdge(sourceTask, targetTask);
+          }
+        }
+
+        // direct nested calls: task2(task1())
+        for (const otherTask of taskNames) {
+          if (otherTask !== targetTask && args.includes(`${otherTask}(`)) {
+            ensureEdge(otherTask, targetTask);
+          }
+        }
+      }
+    }
   }
 }
