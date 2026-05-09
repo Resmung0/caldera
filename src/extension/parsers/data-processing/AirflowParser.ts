@@ -1,11 +1,12 @@
 import { IParser } from "../IParser";
-import { PipelineData, PipelineNode, PipelineEdge } from "../../../shared/types";
+import { PipelineData, PipelineNode, PipelineEdge, CodeSnippet } from "../../../shared/types";
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 
 const execPromise = promisify(exec);
+const execFilePromise = promisify(execFile);
 
 interface CommandInfo {
   command: string;
@@ -26,30 +27,41 @@ export class AirflowParser implements IParser {
     const cwd = path.dirname(filePath);
     const airflowInfo = await this.getAirflowCmd(cwd);
 
-    if (airflowInfo) {
-      try {
-        const dagId = this.extractDagId(content);
-        if (dagId) {
-          const data = await this.parseWithCLI(dagId, filePath, airflowInfo.commandInfo, cwd);
-          // Enrich with snippets from local content
-          data.nodes = data.nodes.map(node => ({
-            ...node,
-            data: {
-              ...node.data,
-              codeDeps: [
-                ...this.extractTaskSnippet(content, node.id),
-                ...this.extractOperatorSnippet(content, node.id)
-              ].slice(0, 1) // Take the first match
-            }
-          }));
-          return data;
-        }
-      } catch (error) {
-        console.error("Airflow CLI parsing failed, falling back to regex:", error);
-      }
-    }
+    const cliResult = airflowInfo
+      ? await this.tryParseWithCLI(content, filePath, airflowInfo.commandInfo, cwd)
+      : null;
 
-    return this.parseWithRegex(content, filePath);
+    return cliResult ?? this.parseWithRegex(content, filePath);
+  }
+
+  private async tryParseWithCLI(
+    content: string,
+    filePath: string,
+    cmdInfo: CommandInfo,
+    cwd: string
+  ): Promise<PipelineData | null> {
+    const dagId = this.extractDagId(content);
+    if (!dagId) return null;
+
+    try {
+      const data = await this.parseWithCLI(dagId, filePath, cmdInfo, cwd);
+      data.nodes = data.nodes.map(node => {
+        const taskSnippets = this.extractTaskSnippet(content, filePath, node.id);
+        const opSnippets = this.extractOperatorSnippet(content, filePath, node.id);
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            codeDeps: [...taskSnippets, ...opSnippets].slice(0, 1),
+          },
+        };
+      });
+      return data;
+    } catch (error) {
+      console.error("Airflow CLI parsing failed, falling back to regex:", error);
+      return null;
+    }
   }
 
   private extractDagId(content: string): string | null {
@@ -66,8 +78,8 @@ export class AirflowParser implements IParser {
   }
 
   private async parseWithCLI(dagId: string, filePath: string, cmdInfo: CommandInfo, cwd: string): Promise<PipelineData> {
-    const fullCmd = [cmdInfo.command, ...cmdInfo.args, 'dags', 'show', dagId].join(' ');
-    const { stdout } = await execPromise(fullCmd, { cwd });
+    const args = [...cmdInfo.args, 'dags', 'show', dagId];
+    const { stdout } = await execFilePromise(cmdInfo.command, args, { cwd });
 
     if (!stdout || !stdout.includes('digraph')) {
         throw new Error("Invalid DOT output from Airflow CLI");
@@ -122,7 +134,7 @@ export class AirflowParser implements IParser {
         type: 'default',
         data: {
           framework: this.name,
-          codeDeps: this.extractTaskSnippet(content, match[1])
+          codeDeps: this.extractTaskSnippet(content, filePath, match[1])
         }
       });
     }
@@ -132,6 +144,12 @@ export class AirflowParser implements IParser {
     while ((match = operatorRegex.exec(content)) !== null) {
       const varName = match[1];
       const taskId = match[2] || varName;
+
+      const byTaskId = this.extractOperatorSnippet(content, filePath, taskId);
+      const codeDeps = byTaskId.length > 0
+        ? byTaskId
+        : this.extractOperatorSnippetByVar(content, filePath, varName);
+
       nodes.push({
         id: taskId,
         label: taskId,
@@ -139,7 +157,7 @@ export class AirflowParser implements IParser {
         data: {
           framework: this.name,
           variableName: varName,
-          codeDeps: this.extractOperatorSnippet(content, taskId) || this.extractOperatorSnippetByVar(content, varName)
+          codeDeps
         }
       });
     }
@@ -190,58 +208,65 @@ export class AirflowParser implements IParser {
     };
   }
 
-  private extractTaskSnippet(content: string, taskId: string): any[] {
+  private findLineIndex(lines: string[], predicate: (line: string, idx: number) => boolean): number {
+    return lines.findIndex(predicate);
+  }
+
+  private getIndentedBlock(lines: string[], headerIdx: number): { start: number; end: number } {
+    const defIdx = lines.findIndex((line, i) => i >= headerIdx && line.includes('def ') && !line.trim().startsWith('#'));
+    if (defIdx === -1) return { start: headerIdx, end: headerIdx };
+
+    const startIndent = lines[defIdx].search(/\S/);
+    let endIdx = defIdx;
+
+    for (let i = defIdx + 1; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (trimmed === '' || trimmed.startsWith('#')) {
+        endIdx = i;
+        continue;
+      }
+      const currentIndent = lines[i].search(/\S/);
+      if (currentIndent <= startIndent && currentIndent !== -1) break;
+      endIdx = i;
+    }
+
+    return { start: headerIdx, end: endIdx };
+  }
+
+  private extractTaskSnippet(content: string, filePath: string, taskId: string): CodeSnippet[] {
     const lines = content.split('\n');
-    const startIdx = lines.findIndex((line, idx) =>
-        line.includes(`@task`) &&
-        (lines[idx + 1]?.includes(`def ${taskId}`) || lines[idx + 2]?.includes(`def ${taskId}`))
+    const startIdx = this.findLineIndex(
+      lines,
+      (line, idx) =>
+        line.includes('@task') &&
+        (lines[idx + 1]?.includes(`def ${taskId}`) || lines[idx + 2]?.includes(`def ${taskId}`)),
     );
     if (startIdx === -1) return [];
 
-    let endIdx = startIdx + 1;
-    for (let i = startIdx + 1; i < lines.length; i++) {
-        if (lines[i].includes(`def ${taskId}`)) {
-            const startIndent = lines[i].search(/\S/);
-            for (let j = i + 1; j < lines.length; j++) {
-                if (lines[j].trim() !== '' && !lines[j].trim().startsWith('#')) {
-                    const currentIndent = lines[j].search(/\S/);
-                    if (currentIndent <= startIndent && currentIndent !== -1) {
-                        endIdx = j - 1;
-                        break;
-                    }
-                }
-                endIdx = j;
-            }
-            break;
-        }
-    }
-
-    return [{
-      path: 'dag.py',
-      snippet: lines.slice(startIdx, endIdx + 1).join('\n')
-    }];
+    const { start, end } = this.getIndentedBlock(lines, startIdx);
+    return [{ path: filePath, snippet: lines.slice(start, end + 1).join('\n') }];
   }
 
-  private extractOperatorSnippet(content: string, taskId: string): any[] {
+  private extractOperatorSnippet(content: string, filePath: string, taskId: string): CodeSnippet[] {
     const lines = content.split('\n');
-    const lineIdx = lines.findIndex(line => line.includes(`task_id=["']${taskId}["']`) || line.includes(`task_id = ["']${taskId}["']`));
+    const lineIdx = this.findLineIndex(
+      lines,
+      line =>
+        line.includes(`task_id=["']${taskId}["']`) ||
+        line.includes(`task_id = ["']${taskId}["']`),
+    );
     if (lineIdx === -1) return [];
-
-    return [{
-      path: 'dag.py',
-      snippet: lines[lineIdx].trim()
-    }];
+    return [{ path: filePath, snippet: lines[lineIdx].trim() }];
   }
 
-  private extractOperatorSnippetByVar(content: string, varName: string): any[] {
+  private extractOperatorSnippetByVar(content: string, filePath: string, varName: string): CodeSnippet[] {
     const lines = content.split('\n');
-    const lineIdx = lines.findIndex(line => line.includes(`${varName} =`) && line.includes('Operator'));
+    const lineIdx = this.findLineIndex(
+      lines,
+      line => line.includes(`${varName} =`) && line.includes('Operator'),
+    );
     if (lineIdx === -1) return [];
-
-    return [{
-      path: 'dag.py',
-      snippet: lines[lineIdx].trim()
-    }];
+    return [{ path: filePath, snippet: lines[lineIdx].trim() }];
   }
 
   private async getAirflowCmd(cwd: string): Promise<{ commandInfo: CommandInfo; isLocal: boolean } | null> {
@@ -249,43 +274,48 @@ export class AirflowParser implements IParser {
       return this.airflowCmdCache.get(cwd)!;
     }
 
-    const isWindows = process.platform === 'win32';
-    const venvDirs = ['.venv', 'venv', 'env'];
-    const venvPaths: string[] = [];
-    for (const dir of venvDirs) {
-      venvPaths.push(
-        path.join(cwd, dir, isWindows ? 'Scripts' : 'bin', isWindows ? 'airflow.exe' : 'airflow')
-      );
-    }
+    let result = this.findVenvAirflow(cwd)
+      ?? await this.findUvAirflow(cwd)
+      ?? await this.findGlobalAirflow();
 
-    let commandInfo: CommandInfo | null = null;
-    let isLocal = false;
-
-    for (const venvAirflow of venvPaths) {
-      if (fs.existsSync(venvAirflow)) {
-        commandInfo = { command: venvAirflow, args: [] };
-        isLocal = true;
-        break;
-      }
-    }
-
-    if (!commandInfo) {
-      try {
-        await execPromise('uv --version');
-        await execPromise('uv run airflow version', { cwd });
-        commandInfo = { command: 'uv', args: ['run', 'airflow'] };
-      } catch { }
-    }
-
-    if (!commandInfo) {
-      try {
-        await execPromise('airflow version');
-        commandInfo = { command: 'airflow', args: [] };
-      } catch { }
-    }
-
-    const result = commandInfo ? { commandInfo, isLocal } : null;
     this.airflowCmdCache.set(cwd, result);
     return result;
+  }
+
+  private findVenvAirflow(cwd: string): { commandInfo: CommandInfo; isLocal: boolean } | null {
+    const isWindows = process.platform === 'win32';
+    const venvDirs = ['.venv', 'venv', 'env'];
+
+    for (const dir of venvDirs) {
+      const venvAirflow = path.join(
+        cwd,
+        dir,
+        isWindows ? 'Scripts' : 'bin',
+        isWindows ? 'airflow.exe' : 'airflow',
+      );
+      if (fs.existsSync(venvAirflow)) {
+        return { commandInfo: { command: venvAirflow, args: [] }, isLocal: true };
+      }
+    }
+    return null;
+  }
+
+  private async findUvAirflow(cwd: string): Promise<{ commandInfo: CommandInfo; isLocal: boolean } | null> {
+    try {
+      await execPromise('uv --version');
+      await execPromise('uv run airflow version', { cwd });
+      return { commandInfo: { command: 'uv', args: ['run', 'airflow'] }, isLocal: false };
+    } catch {
+      return null;
+    }
+  }
+
+  private async findGlobalAirflow(): Promise<{ commandInfo: CommandInfo; isLocal: boolean } | null> {
+    try {
+      await execPromise('airflow version');
+      return { commandInfo: { command: 'airflow', args: [] }, isLocal: false };
+    } catch {
+      return null;
+    }
   }
 }
