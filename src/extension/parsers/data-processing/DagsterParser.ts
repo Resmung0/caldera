@@ -15,17 +15,46 @@ export class DagsterParser implements IParser {
     );
   }
 
+  /**
+   * Split Python function arguments safely by respecting nested brackets/parentheses.
+   */
+  private splitArgs(argList: string): string[] {
+    const args: string[] = [];
+    let current = "";
+    let depth = 0;
+
+    for (let i = 0; i < argList.length; i++) {
+        const char = argList[i];
+        if (char === '[' || char === '(' || char === '{') depth++;
+        if (char === ']' || char === ')' || char === '}') depth--;
+
+        if (char === ',' && depth === 0) {
+            args.push(current.trim());
+            current = "";
+        } else {
+            current += char;
+        }
+    }
+    if (current.trim()) {
+        args.push(current.trim());
+    }
+    return args;
+  }
+
   private isSimpleDagsterSignature(argList: string): boolean {
-    const hasNestedParens =
+    // We now allow brackets for type hints like List[str]
+    // but still guard against nested parentheses or braces which might indicate complex defaults
+    const hasNestedComplex =
       argList.includes('(') ||
       argList.includes(')') ||
       argList.includes('{') ||
       argList.includes('}');
-    if (hasNestedParens) {
+
+    if (hasNestedComplex) {
       return false;
     }
 
-    if (argList.length > 200) {
+    if (argList.length > 500) { // Increased limit slightly
       return false;
     }
 
@@ -37,7 +66,9 @@ export class DagsterParser implements IParser {
     const edges: PipelineEdge[] = [];
     const nodeIds = new Set<string>();
 
-    const decoratorRegex = /@(asset|op|graph_asset|multi_asset)(?:\(([\s\S]*?)\))?\s+def\s+(\w+)\s*\(([\s\S]*?)\)/g;
+    // Improved regex to handle multiline and multiple decorators
+    // Matches @asset/op followed by optional arguments, then any number of other decorators/comments, then the def
+    const decoratorRegex = /@(asset|op|graph_asset|multi_asset)(?:\(([\s\S]*?)\))?(?:\s*@\w+(?:\([\s\S]*?\))?|\s*#.*|\s+)*\s+def\s+(\w+)\s*\(([\s\S]*?)\)/g;
 
     let match;
     while ((match = decoratorRegex.exec(content)) !== null) {
@@ -62,9 +93,10 @@ export class DagsterParser implements IParser {
             });
             nodeIds.add(id);
 
-            const args = funcArgs.split(',')
+            // Use smarter splitter
+            const args = this.splitArgs(funcArgs)
                 .map(arg => arg.trim())
-                .filter(arg => arg && !arg.startsWith('*')) // Ignore *args and **kwargs
+                .filter(arg => arg && !arg.startsWith('*'))
                 .map(arg => {
                     return arg.split(/[=:]/)[0].trim();
                 })
@@ -83,7 +115,7 @@ export class DagsterParser implements IParser {
             if (decArgs) {
                 const depsMatch = decArgs.match(/deps\s*=\s*\[([\s\S]*?)\]/);
                 if (depsMatch) {
-                    const deps = depsMatch[1].split(',')
+                    const deps = this.splitArgs(depsMatch[1])
                         .map(d => d.trim().replace(/['"()]/g, '').replace(/^AssetKey/, ''))
                         .filter(d => d);
                     for (const dep of deps) {

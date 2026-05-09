@@ -119,6 +119,17 @@ def processed_data( raw_data  ,   other_data , /, *args, context = None, **kwarg
     expect(result.edges.length).toBe(2);
   });
 
+  it('should handle brackets in type hints', async () => {
+    const content = `
+@asset
+def bracket_asset(upstream: List[int], context):
+    pass
+`;
+    const result = await parser.parse(content, 'bracket.py');
+    expect(result.edges.length).toBe(1);
+    expect(result.edges[0].source).toBe('upstream');
+  });
+
   it('should parse dependencies from deps argument in decorator', async () => {
     const content = `
 @asset(deps=["upstream_asset"])
@@ -149,10 +160,10 @@ def downstream_asset():
     expect(sources).toEqual(['another_upstream', 'keyed_asset', 'upstream_asset']);
   });
 
-  it('should skip complex function signatures', async () => {
+  it('should skip complex function signatures with parentheses', async () => {
     const content = `
 @asset
-def complex_asset(arg: Dict[str, int] = {"a": 1}):
+def complex_asset(arg: Dict[str, int] = factory()):
     pass
 `;
     const result = await parser.parse(content, 'complex.py');
@@ -173,6 +184,20 @@ def multiline_asset(
 `;
     const result = await parser.parse(content, 'multiline.py');
     expect(result.nodes.map(n => n.id)).toContain('multiline_asset');
+    expect(result.edges.length).toBe(1);
+    expect(result.edges[0].source).toBe('upstream');
+  });
+
+  it('should handle multiple decorators', async () => {
+    const content = `
+@asset
+@other_decorator
+@another_one(arg=1)
+def decorated_asset(upstream):
+    pass
+`;
+    const result = await parser.parse(content, 'decorated.py');
+    expect(result.nodes.map(n => n.id)).toContain('decorated_asset');
     expect(result.edges.length).toBe(1);
     expect(result.edges[0].source).toBe('upstream');
   });
