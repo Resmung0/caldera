@@ -1,203 +1,133 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  CheckCircle,
-  XCircle,
-  Clock,
-  CircleDashed,
-  Terminal,
-  GitBranch,
-  ChevronDown,
-  FileCode,
-  List,
-  Folder,
-  Sparkles
-} from 'lucide-react';
+import { Terminal, GitBranch, List, FileCode, ChevronDown, ChevronRight, CheckCircle2, Circle, Clock, AlertCircle, Database } from 'lucide-react';
 import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
-import { FiDatabase } from 'react-icons/fi';
-import { LuImage, LuTable2, LuVideo, LuMusic4 } from 'react-icons/lu';
-import { NodeDropdown } from './NodeDropdown';
 
-/**
- * Centralized configuration for pipeline node status rendering.
- * Maps each status to its visual properties (icon, color, animation, styling).
- * 
- * @property icon - The Lucide icon component to display for this status
- * @property iconColor - The hex color code for the icon
- * @property animationVariant - The animation variant key from nodeVariants
- * @property className - CSS class name to apply for this status
- * @property showSweep - Whether to display the sweep overlay animation
- */
-const STATUS_CONFIG = {
-  idle: {
-    icon: CircleDashed,
-    iconColor: '#a0aec0',
-    animationVariant: 'idle' as const,
-    className: '',
-    showSweep: false,
-  },
-  processing: {
-    icon: Clock,
-    iconColor: '#f20d63',
-    animationVariant: 'idle' as const,
-    className: 'processing',
-    showSweep: true,
-  },
-  running: {
-    icon: Clock,
-    iconColor: '#f20d63',
-    animationVariant: 'idle' as const,
-    className: 'processing',
-    showSweep: true,
-  },
-  success: {
-    icon: CheckCircle,
-    iconColor: '#4ade80',
-    animationVariant: 'success' as const,
-    className: 'success',
-    showSweep: false,
-  },
-  failed: {
-    icon: XCircle,
-    iconColor: '#891fff',
-    animationVariant: 'failed' as const,
-    className: 'failed',
-    showSweep: false,
-  },
-} as const;
+interface NodeDropdownProps {
+  icon: any;
+  label: string;
+  items: any;
+  isExpanded: boolean;
+  onToggle: (e: React.MouseEvent) => void;
+  variant: 'params' | 'deps';
+}
 
-// Animation variants for node status
-const nodeVariants = {
-  idle: {},
-  processing: {},
-  failed: {
-    x: [-2, 2, -2, 2, -1, 1, 0],
-    rotate: [-1, 1, -1, 1, -0.5, 0.5, 0],
-    transition: {
-      duration: 0.4,
-      repeat: Infinity,
-      repeatDelay: 0.1,
-    },
-  },
-  success: {
-    scale: [1, 1.02, 1],
-    transition: {
-      duration: 0.5,
-    },
-  },
+const NodeDropdown: React.FC<NodeDropdownProps> = ({ icon: Icon, label, items, isExpanded, onToggle, variant }) => {
+  return (
+    <div className={`node-dropdown ${variant}`}>
+      <div className="dropdown-trigger" onClick={onToggle}>
+        <Icon size={12} className="dropdown-icon" />
+        <span className="dropdown-label">{label}</span>
+        {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+      </div>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="dropdown-content"
+          >
+            {variant === 'params' ? (
+              Object.entries(items).map(([key, value]: [string, any]) => (
+                <div key={key} className="dropdown-item">
+                  <span className="item-key">{key}:</span>
+                  <span className="item-value">{JSON.stringify(value)}</span>
+                </div>
+              ))
+            ) : (
+              (items as any[]).map((dep, idx) => (
+                <div key={idx} className="dropdown-item dep-item">
+                  <div className="dep-path">{dep.path}</div>
+                  {dep.snippet && <pre className="dep-snippet"><code>{dep.snippet}</code></pre>}
+                </div>
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
-// Sweep overlay animation
-const sweepVariants = {
-  initial: { backgroundPosition: '-200% 0' },
-  animate: {
-    backgroundPosition: '200% 0',
-    transition: {
-      duration: 1.2,
-      repeat: Infinity,
-    },
-  },
-  exit: { opacity: 0, transition: { duration: 0.2 } },
-};
-
-// Sparkle animation variants
-// Ripple animation variants for artifact materialization
-const rippleVariants = {
-  initial: {
-    opacity: 0.8,
-    scale: 1,
-    borderWidth: "2px"
-  },
-  animate: {
-    opacity: 0,
-    scale: 1.5,
-    borderWidth: "0px",
-    transition: {
-      duration: 1.5,
-      ease: "easeOut" as const
-    }
-  }
-};
-
-export const PipelineNodeItem = ({ data, id }: NodeProps) => {
-  const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false, type } = data;
-  const [isDepsExpanded, setIsDepsExpanded] = useState(false);
+export const PipelineNodeItem: React.FC<NodeProps> = ({ data, selected, targetPosition = Position.Top, sourcePosition = Position.Bottom }) => {
   const [isParamsExpanded, setIsParamsExpanded] = useState(false);
+  const [isDepsExpanded, setIsDepsExpanded] = useState(false);
 
-  const targetPosition = layoutDirection === 'LR' ? Position.Left : Position.Top;
-  const sourcePosition = layoutDirection === 'LR' ? Position.Right : Position.Bottom;
+  const isSelected = selected;
+  const isSelectionMode = data.isSelectionMode;
 
-  const isArtifact = type === 'artifact';
+  const nodeVariants = {
+    initial: { scale: 0.9, opacity: 0 },
+    animate: { scale: 1, opacity: 1 },
+    hover: { scale: 1.02, transition: { duration: 0.2 } }
+  };
 
-  // Use STATUS_CONFIG for all status-related rendering
-  const status = (data.status || 'idle') as keyof typeof STATUS_CONFIG;
-  const config = STATUS_CONFIG[status];
-  const StatusIcon = config.icon;
+  const sweepVariants = {
+    initial: { left: '-100%' },
+    animate: { left: '100%', transition: { duration: 1.5, repeat: Infinity, ease: "linear" } },
+    exit: { opacity: 0 }
+  };
 
-  const getDataTypeIcon = (dataType: string) => {
-    switch (dataType) {
-      case 'image': return <LuImage size={12} />;
-      case 'table': return <LuTable2 size={12} />;
-      case 'video': return <LuVideo size={12} />;
-      case 'audio': return <LuMusic4 size={12} />;
-      case 'folder': return <Folder size={12} />;
-      default: return null;
+  const getStatusConfig = (status?: string) => {
+    switch (status) {
+      case 'running':
+        return {
+          icon: Clock,
+          color: '#3b82f6',
+          animationVariant: { scale: [1, 1.02, 1], transition: { repeat: Infinity, duration: 2 } },
+          showSweep: true,
+          className: 'running',
+          iconColor: '#3b82f6'
+        };
+      case 'success':
+        return { icon: CheckCircle2, color: '#10b981', iconColor: '#10b981', className: 'success' };
+      case 'failed':
+        return { icon: AlertCircle, color: '#ef4444', iconColor: '#ef4444', className: 'failed' };
+      default:
+        return { icon: Circle, color: '#94a3b8', iconColor: '#94a3b8', className: 'idle' };
     }
   };
 
-  if (isArtifact) {
+  const config = getStatusConfig(data.status);
+  const StatusIcon = config.icon;
+
+  if (data.type === 'artifact') {
     return (
       <motion.div
-        className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${config.className}`}
+        className={`pipeline-node-item artifact ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''}`}
         variants={nodeVariants}
-        animate={config.animationVariant}
+        initial="initial"
+        animate="animate"
+        whileHover="hover"
       >
         <Handle type="target" position={targetPosition} className="handle" />
-        {status === 'success' && (
-          <motion.div
-            className="materialize-ripple"
-            variants={rippleVariants}
-            initial="initial"
-            animate="animate"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              borderRadius: '18px',
-              border: '2px solid #f20d63',
-              boxShadow: '0 0 10px rgba(242, 13, 99, 0.5)',
-              pointerEvents: 'none',
-              zIndex: -1
-            }}
-          />
-        )}
 
         <div className="artifact-header">
-          <div className="artifact-header-icon">
-            <FiDatabase size={12} />
-          </div>
-          <div className="artifact-name" title={data.label}>{data.label}</div>
+            <div className="artifact-header-icon">
+                {data.data?.dataType === 'asset' ? <Database size={12} /> : <FileCode size={12} />}
+            </div>
+            <div className="artifact-name" title={data.label}>{data.label}</div>
         </div>
 
         <div className="artifact-body">
-          {status === 'success' && (
-            <div className="artifact-badge success">
-              <Sparkles size={8} />
-              <span>Materialized</span>
-            </div>
+          {data.framework && (
+             <div className={`artifact-badge ${config.className}`}>
+                {(() => {
+                  const framework = data.framework.toLowerCase();
+                  if (framework.includes('github')) return <SiGithub size={8} />;
+                  if (framework.includes('gitlab')) return <SiGitlab size={8} />;
+                  if (framework.includes('dvc')) return <SiDvc size={8} />;
+                  if (framework.includes('dagster')) return <Database size={8} />;
+                  return <GitBranch size={8} />;
+                })()}
+                <span>{data.framework}</span>
+             </div>
           )}
-          {data.dataType && data.dataType !== 'other' && (
-            <div className="artifact-badge">
-              {getDataTypeIcon(data.dataType)}
-              <span>{data.dataType}</span>
-            </div>
-          )}
-          {data.dataType === 'folder' && data.contents && (
+          {data.data?.contents && (
             <div className="folder-preview">
-              {data.contents.slice(0, 1).map((item: string) => (
+              {data.data.contents.slice(0, 1).map((item: string) => (
                 <div key={item} className="folder-item">• {item}</div>
               ))}
             </div>
@@ -216,7 +146,6 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
                         border: 1px solid var(--color-border);
                         display: flex;
                         flex-direction: column;
-                        transition: all 0.3s ease;
                         transition: all 0.3s ease;
                         overflow: visible;
                         position: relative;
@@ -293,10 +222,6 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
                         text-overflow: ellipsis;
                         max-width: 60px;
                     }
-
-                    .pipeline-node-item.artifact.selected::after {
-                        border-radius: 18px;
-                    }
                 `}</style>
       </motion.div>
     );
@@ -310,7 +235,6 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
     >
       <Handle type="target" position={targetPosition} className="handle" />
 
-      {/* Sweep overlay for processing */}
       <AnimatePresence>
         {config.showSweep && (
           <motion.div
@@ -328,7 +252,6 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           <Terminal size={16} color="#a0aec0" />
         </div>
         <div className="node-title" title={data.label}>{data.label}</div>
-        {/* Remove the chevron toggle from header since we'll use a badge below */}
       </div>
 
       <div className="node-body">
@@ -336,15 +259,10 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           <div className="node-meta">
             {(() => {
               const framework = data.framework.toLowerCase();
-              if (framework.includes('github')) {
-                return <SiGithub size={12} style={{ marginRight: 4 }} />;
-              }
-              if (framework.includes('gitlab')) {
-                return <SiGitlab size={12} style={{ marginRight: 4 }} />;
-              }
-              if (framework.includes('dvc')) {
-                return <SiDvc size={12} style={{ marginRight: 4 }} />;
-              }
+              if (framework.includes('github')) return <SiGithub size={12} style={{ marginRight: 4 }} />;
+              if (framework.includes('gitlab')) return <SiGitlab size={12} style={{ marginRight: 4 }} />;
+              if (framework.includes('dvc')) return <SiDvc size={12} style={{ marginRight: 4 }} />;
+              if (framework.includes('dagster')) return <Database size={12} style={{ marginRight: 4 }} />;
               return <GitBranch size={12} style={{ marginRight: 4 }} />;
             })()}
             <span>{data.framework}</span>
@@ -403,44 +321,9 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           transform: translateY(-2px);
         }
         
-        .pipeline-node-item.selection-mode {
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        
-        .pipeline-node-item.selection-mode:hover {
-          border-color: #f20d63;
-          box-shadow: 0 0 20px rgba(242, 13, 99, 0.4);
-          transform: translateY(-1px);
-        }
-        
         .pipeline-node-item.selected {
           border-color: #f20d63 !important;
           box-shadow: 0 0 20px rgba(242, 13, 99, 0.6) !important;
-          background: rgba(242, 13, 99, 0.05);
-          transform: translateY(-2px);
-        }
-        
-        .pipeline-node-item.selected::after {
-          content: '';
-          position: absolute;
-          top: -2px;
-          left: -2px;
-          right: -2px;
-          bottom: -2px;
-          border: 2px solid #f20d63;
-          border-radius: 14px;
-          pointer-events: none;
-          animation: selectedPulse 2s infinite;
-        }
-
-        .pipeline-node-item.artifact.selected::after {
-            border-radius: 32px;
-        }
-        
-        @keyframes selectedPulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
         }
         
         .node-header {
@@ -459,24 +342,6 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .node-action {
-          cursor: pointer;
-          opacity: 0.6;
-          display: flex;
-          align-items: center;
-          transition: opacity 0.2s;
-        }
-        .node-action:hover {
-          opacity: 1;
-        }
-        .node-badges-row {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: flex-start;
-          gap: 6px;
-          margin-top: 4px;
-        }
-
         .node-body {
           font-size: 11px;
           color: #a0aec0;
@@ -494,7 +359,6 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           height: 8px !important;
           border: 2px solid var(--color-bg-primary) !important;
         }
-
         .node-status {
           display: flex;
           align-items: center;

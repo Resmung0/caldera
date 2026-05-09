@@ -28,6 +28,8 @@ const iconMap: Record<string, IconType> = {
   travisci: SiTravisci,
   kedro: SiKedro,
   uipath: SiUipath,
+  // Dagster icon is not available in this version of react-icons, using Airflow as a placeholder or fallback to GitBranch in component
+  dagster: SiApacheairflow,
 };
 
 export const getToolIcon = (toolName: string): IconType | null => {
