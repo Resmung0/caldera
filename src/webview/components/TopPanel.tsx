@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Workflow, Sparkle, Bot, Activity } from 'lucide-react';
 
 interface TopPanelProps {
     onCategorySelect: (category: string) => void;
     activeCategory: string;
+    isRunning?: boolean;
 }
 
-export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCategory }) => {
+export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCategory, isRunning = false }) => {
     const [activeContext, setActiveContext] = useState<string>(activeCategory || 'cicd');
 
     // Update local state when activeCategory prop changes
@@ -17,10 +19,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCate
     }, [activeCategory, activeContext]);
 
     const contexts = [
-        { id: 'cicd', icon: Workflow, label: 'CI/CD' },
-        { id: 'data-processing', icon: Activity, label: 'Data Processing' },
-        { id: 'ai-agent', icon: Sparkle, label: 'AI Agent' },
-        { id: 'rpa', icon: Bot, label: 'Automation' },
+        { id: 'cicd', icon: Workflow, label: 'CI/CD', color: '#10B981' },
+        { id: 'data-processing', icon: Activity, label: 'Data Processing', color: '#8B5CF6' },
+        { id: 'ai-agent', icon: Sparkle, label: 'AI Agent', color: '#EC4899' },
+        { id: 'rpa', icon: Bot, label: 'Automation', color: '#EF4444' },
     ];
 
     return (
@@ -37,9 +39,25 @@ export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCate
                                 setActiveContext(ctx.id);
                                 onCategorySelect(ctx.id);
                             }}
+                            style={{ '--active-color': ctx.color } as React.CSSProperties}
                         >
-                            <Icon size={16} />
-                            <span className="tab-label">{ctx.label}</span>
+                            <AnimatePresence>
+                                {isActive && isRunning && (
+                                    <motion.div
+                                        className="run-fill"
+                                        initial={{ width: '0%' }}
+                                        animate={{ width: '100%' }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{
+                                            duration: 2,
+                                            repeat: Infinity,
+                                            ease: "linear"
+                                        }}
+                                    />
+                                )}
+                            </AnimatePresence>
+                            <Icon size={16} style={{ position: 'relative', zIndex: 1 }} />
+                            <span className="tab-label" style={{ position: 'relative', zIndex: 1 }}>{ctx.label}</span>
                         </button>
                         {!isLast && <div className="separator">|</div>}
                     </React.Fragment>
@@ -76,6 +94,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCate
           white-space: nowrap;
           position: relative;
           border-radius: 6px;
+          overflow: hidden;
         }
         .context-tab:hover:not(.active) {
           color: rgba(255, 255, 255, 0.8);
@@ -85,6 +104,15 @@ export const TopPanel: React.FC<TopPanelProps> = ({ onCategorySelect, activeCate
           color: white;
           background: #f20d63;
           box-shadow: 0 2px 8px rgba(242, 13, 99, 0.4);
+        }
+        .run-fill {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: var(--active-color);
+          z-index: 0;
+          opacity: 0.8;
         }
         .tab-label {
           font-size: 12px;
