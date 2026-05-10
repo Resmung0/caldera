@@ -1,11 +1,24 @@
 import { PipelinePatternType, AnnotationColorScheme } from './base-types';
 
+export interface CodeSnippet {
+  path: string;
+  snippet: string;
+}
+
 export interface PipelineNode {
   id: string;
   label: string;
   type?: string;
   status?: 'idle' | 'running' | 'success' | 'failed';
-  data?: any;
+  data?: {
+    framework?: string;
+    codeDeps?: CodeSnippet[];
+    params?: any;
+    variableName?: string;
+    dataType?: string;
+    contents?: string[];
+    [key: string]: any;
+  };
 }
 
 export interface PipelineEdge {
