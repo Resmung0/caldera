@@ -105,8 +105,26 @@ def my_dag():
 
       expect(tryParseWithCLISpy).toHaveBeenCalledTimes(1);
       expect(parseWithRegexSpy).toHaveBeenCalledTimes(1);
+      expect(parseWithRegexSpy).toHaveBeenCalledWith(dagContent, filePath);
       expect(result).toBe(regexResult);
     });
+
+    it('should fall back directly to regex when Airflow CLI is not available', async () => {
+        const regexResult = { nodes: [{ id: 'task_from_regex', label: 'task_from_regex' }], edges: [] };
+
+        jest.spyOn(parser as any, 'getAirflowCmd').mockResolvedValue(null);
+
+        const tryParseWithCLISpy = jest.spyOn(parser as any, 'tryParseWithCLI');
+        const parseWithRegexSpy = jest
+          .spyOn(parser as any, 'parseWithRegex')
+          .mockResolvedValue(regexResult);
+
+        const result = await parser.parse(dagContent, filePath);
+
+        expect(tryParseWithCLISpy).not.toHaveBeenCalled();
+        expect(parseWithRegexSpy).toHaveBeenCalledTimes(1);
+        expect(result).toBe(regexResult);
+      });
 
     it('should skip CLI and use regex when no dag_id is extracted', async () => {
       const regexResult = { nodes: [{ id: 'task_from_regex', label: 'task_from_regex' }], edges: [] };
@@ -150,7 +168,10 @@ def my_dag():
 
       const nodeA = result.nodes.find((n: any) => n.id === 'task_a');
       expect(nodeA.data.codeDeps.length).toBeGreaterThan(0);
-      expect(nodeA.data.codeDeps[0].snippet).toContain('def task_a');
+      expect(nodeA.data.codeDeps[0]).toEqual(expect.objectContaining({
+          path: 'dag.py',
+          snippet: expect.stringContaining('def task_a')
+      }));
     });
 
     it('should handle << and set_upstream', () => {
@@ -186,6 +207,20 @@ bash_task_var >> python_task_var
         expect(result.nodes).toContainEqual(expect.objectContaining({ id: 'python_task' }));
         expect(result.edges).toContainEqual(expect.objectContaining({ source: 'bash_task', target: 'python_task' }));
     });
+
+    it('should extract snippets for classic operators', () => {
+        const content = `
+bash_task = BashOperator(task_id="bash_task", bash_command="echo 1")
+`;
+        const result = (parser as any).parseWithRegex(content, 'dag.py');
+        const bashNode = result.nodes.find((n: any) => n.id === 'bash_task');
+        expect(bashNode).toBeDefined();
+        expect(bashNode.data.codeDeps.length).toBeGreaterThan(0);
+        expect(bashNode.data.codeDeps[0]).toEqual(expect.objectContaining({
+            path: 'dag.py',
+            snippet: expect.stringContaining('BashOperator(task_id="bash_task"')
+        }));
+    });
   });
 
   describe('parseDot', () => {
@@ -206,12 +241,38 @@ digraph test_dag {
   });
 
   describe('tryParseWithCLI', () => {
-      it('should return null when CLI output is not DOT', async () => {
+      it('should return null when CLI output is not DOT (missing digraph)', async () => {
           jest.spyOn(parser as any, 'extractDagId').mockReturnValue('test_dag');
-          jest.spyOn(parser as any, 'parseWithCLI').mockRejectedValue(new Error('Invalid DOT'));
+          jest.spyOn(parser as any, 'parseWithCLI').mockRejectedValue(new Error('Invalid DOT output from Airflow CLI'));
 
           const result = await (parser as any).tryParseWithCLI('content', 'dag.py', { command: 'airflow', args: [] }, '.');
           expect(result).toBeNull();
       });
+  });
+
+  describe('extractTaskSnippet', () => {
+    it('extracts multi-line TaskFlow function bodies with path and snippet', () => {
+      const content = `
+from airflow.decorators import task
+
+@task
+def task_a():
+    x = 1
+    y = 2
+    return x + y
+`;
+      const parserAny = parser as any;
+      const snippets = parserAny.extractTaskSnippet(content, 'dag.py', 'task_a');
+
+      expect(snippets).toHaveLength(1);
+      expect(snippets[0]).toEqual(
+        expect.objectContaining({
+          path: 'dag.py',
+          snippet: expect.stringContaining('def task_a'),
+        }),
+      );
+      expect(snippets[0].snippet).toContain('x = 1');
+      expect(snippets[0].snippet).toContain('return x + y');
+    });
   });
 });
