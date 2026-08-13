@@ -1,21 +1,22 @@
-import * as vscode from 'vscode';
-import { PipelineWebviewProvider } from './WebviewProvider';
+import * as vscode from "vscode";
+import { PipelineWebviewProvider } from "./WebviewProvider";
 
-import { IPipeline } from './pipelines/IPipeline';
-import { ParserWithPatterns } from './pipelines/IPipeline';
-import { CICDPipeline } from './pipelines/CICDPipeline';
-import { DataProcessingPipeline } from './pipelines/DataProcessingPipeline';
-import { AIAgentPipeline } from './pipelines/AIAgentPipeline';
-import { RPAPipeline } from './pipelines/RPAPipeline';
-import { PipelinePatternType } from '../shared/types';
-import { LOG_PREFIX } from './constants';
+import { IPipeline } from "./pipelines/IPipeline";
+import { ParserWithPatterns } from "./pipelines/IPipeline";
+import { CICDPipeline } from "./pipelines/CICDPipeline";
+import { DataProcessingPipeline } from "./pipelines/DataProcessingPipeline";
+import { AIAgentPipeline } from "./pipelines/AIAgentPipeline";
+import { RPAPipeline } from "./pipelines/RPAPipeline";
+import { PipelinePatternType } from "../shared/types";
+import { LOG_PREFIX } from "./constants";
+import { PillWebviewPanel } from "./PillWebviewPanel";
 
 export function activate(context: vscode.ExtensionContext) {
     console.log(`${LOG_PREFIX} 🚀 Extension is activating...`);
 
     const provider = new PipelineWebviewProvider(context.extensionUri);
-    // Allow DataProcessingPipeline to omit 'patterns' property
-    const pipelines: (IPipeline | Omit<IPipeline, 'patterns'>)[] = [
+    // Allow DataProcessingPipeline to omit "patterns" property
+    const pipelines: (IPipeline | Omit<IPipeline, "patterns">)[] = [
         new CICDPipeline(),
         new DataProcessingPipeline(),
         new AIAgentPipeline(),
@@ -41,6 +42,23 @@ export function activate(context: vscode.ExtensionContext) {
                         discoverPipelines(provider, pipeline as any, fileName);
                     }
                 }
+
+                // If Pill/Badge webview is open, hot-reload/update it as well
+                if (PillWebviewPanel.currentPanel) {
+                    for (const pipeline of pipelines) {
+                        const parser = pipeline.parsers.find((p: any) => p.canParse(fileName, content));
+                        if (parser) {
+                            parser.parse(content, fileName).then((data: any) => {
+                                if (PillWebviewPanel.currentPanel) {
+                                    PillWebviewPanel.currentPanel.update({ ...data, category: pipeline.type });
+                                }
+                            }).catch((err: any) => {
+                                console.error(`${LOG_PREFIX} ❌ PillView hot-reload parse error:`, err);
+                            });
+                            break;
+                        }
+                    }
+                }
             }
         } catch (error) {
             console.error(`${LOG_PREFIX} ❌ Error in watchFiles:`, error);
@@ -63,18 +81,56 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('caldera.visualizePipeline', (filePath: string) => {
+        vscode.commands.registerCommand("caldera.visualizePipeline", (filePath: string) => {
             discover(filePath);
         })
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('caldera.selectCategory', (category: string) => {
+        vscode.commands.registerCommand("caldera.selectCategory", (category: string) => {
             if (Object.values(PipelinePatternType).includes(category as PipelinePatternType)) {
                 provider.pipelineType = category as PipelinePatternType;
                 discover();
             } else {
                 console.error(`${LOG_PREFIX} ❌ Invalid category received: ${category}`);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand("caldera.showPipelinePillView", async () => {
+            const activeEditor = vscode.window.activeTextEditor;
+            if (!activeEditor) {
+                vscode.window.showErrorMessage("No active editor open.");
+                return;
+            }
+
+            const fileName = activeEditor.document.fileName;
+            const content = activeEditor.document.getText();
+
+            // Find matching pipeline parser
+            let matchedParser: any = null;
+            let matchedPipeline: any = null;
+            for (const pipeline of pipelines) {
+                const parser = pipeline.parsers.find((p: any) => p.canParse(fileName, content));
+                if (parser) {
+                    matchedParser = parser;
+                    matchedPipeline = pipeline;
+                    break;
+                }
+            }
+
+            if (!matchedParser) {
+                vscode.window.showWarningMessage("The active file is not a supported pipeline configuration.");
+                return;
+            }
+
+            try {
+                const data = await matchedParser.parse(content, fileName);
+                const finalData = { ...data, category: matchedPipeline.type };
+                PillWebviewPanel.createOrShow(context.extensionUri, finalData);
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`Failed to parse pipeline file: ${error.message || error}`);
             }
         })
     );
@@ -86,14 +142,14 @@ export function activate(context: vscode.ExtensionContext) {
 
 async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IPipeline, targetFile?: string) {
     provider.setLoading(true);
-    console.log(`${LOG_PREFIX} 🔍 Discovering pipelines for category ${pipeline.type}. Target: ${targetFile || 'All'}`);
+    console.log(`${LOG_PREFIX} 🔍 Discovering pipelines for category ${pipeline.type}. Target: ${targetFile || "All"}`);
 
 
     // Collect files for each parser and keep track of which parser matches which file
     const parserFiles: { parser: ParserWithPatterns, files: vscode.Uri[] }[] = [];
     for (const parser of (pipeline.parsers as ParserWithPatterns[])) {
         const foundArrays = await Promise.all(
-            parser.patterns.map(pattern => vscode.workspace.findFiles(pattern, '**/node_modules/**'))
+            parser.patterns.map(pattern => vscode.workspace.findFiles(pattern, "**/node_modules/**"))
         );
         const foundFiles = foundArrays.flat();
         parserFiles.push({ parser, files: foundFiles });
@@ -105,8 +161,8 @@ async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IP
     if (allPipelineFiles.length === 0) {
         console.log(`${LOG_PREFIX} ⚠️ No pipeline files found for category ${pipeline.type}.`);
         provider.updatePipeline({
-            filePath: '',
-            framework: '',
+            filePath: "",
+            framework: "",
             nodes: [],
             edges: [],
             category: pipeline.type,
