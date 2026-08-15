@@ -9,6 +9,7 @@ import { AIAgentPipeline } from "./pipelines/AIAgentPipeline";
 import { RPAPipeline } from "./pipelines/RPAPipeline";
 import { PipelinePatternType } from "../shared/types";
 import { LOG_PREFIX } from "./constants";
+import { PillBreadcrumbDecorator } from "./PillBreadcrumbDecorator";
 import { PillPopupProvider } from "./PillPopupProvider";
 
 export function activate(context: vscode.ExtensionContext) {
@@ -43,19 +44,29 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 }
 
-                // Update status bar pill badge
+                // Update breadcrumb pill decorations directly below breadcrumb bar (line 0)
+                let matched = false;
                 for (const pipelineItem of pipelines) {
                     const parser = pipelineItem.parsers.find((p: any) => p.canParse(fileName, content));
                     if (parser) {
+                        matched = true;
                         parser.parse(content, fileName).then((data: any) => {
-                            PillPopupProvider.updateStatusBarItem({ ...data, category: pipelineItem.type });
+                            const finalData = { ...data, category: pipelineItem.type };
+                            PillBreadcrumbDecorator.updateDecorations(activeEditor, finalData);
+                            PillPopupProvider.updateStatusBarItem(finalData);
                         }).catch(() => {
+                            PillBreadcrumbDecorator.clearDecorations(activeEditor);
                             PillPopupProvider.updateStatusBarItem(undefined);
                         });
                         break;
                     }
                 }
+                if (!matched) {
+                    PillBreadcrumbDecorator.clearDecorations(activeEditor);
+                    PillPopupProvider.updateStatusBarItem(undefined);
+                }
             } else {
+                PillBreadcrumbDecorator.clearDecorations();
                 PillPopupProvider.updateStatusBarItem(undefined);
             }
         } catch (error) {
@@ -126,6 +137,7 @@ export function activate(context: vscode.ExtensionContext) {
             try {
                 const data = await matchedParser.parse(content, fileName);
                 const finalData = { ...data, category: matchedPipeline.type };
+                PillBreadcrumbDecorator.updateDecorations(activeEditor, finalData);
                 PillPopupProvider.updateStatusBarItem(finalData);
                 await PillPopupProvider.showQuickPickPopup(finalData);
             } catch (error: any) {
