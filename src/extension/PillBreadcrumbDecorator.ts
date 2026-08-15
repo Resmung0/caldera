@@ -25,9 +25,9 @@ export function createPillSvgDataUri(index: number, label: string, isLast: boole
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth + (isLast ? 0 : 14)}" height="${height}" viewBox="0 0 ${totalWidth + (isLast ? 0 : 14)} ${height}">
       <g>
         <!-- Outer rounded rectangle -->
-        <rect x="0.5" y="0.5" width="${totalWidth - 1}" height="${height - 1}" rx="4" fill="#181825" stroke="#7c3aed" stroke-width="1.2"/>
-        <!-- Purple left block for index -->
-        <path d="M 0.5 4.5 A 4 4 0 0 1 4.5 0.5 L ${indexWidth} 0.5 L ${indexWidth} ${height - 0.5} L 4.5 ${height - 0.5} A 4 4 0 0 1 0.5 ${height - 4.5} Z" fill="#7c3aed"/>
+        <rect x="0.5" y="0.5" width="${totalWidth - 1}" height="${height - 1}" rx="4" fill="#181825" stroke="#f20d63" stroke-width="1.2"/>
+        <!-- Pink left block for index -->
+        <path d="M 0.5 4.5 A 4 4 0 0 1 4.5 0.5 L ${indexWidth} 0.5 L ${indexWidth} ${height - 0.5} L 4.5 ${height - 0.5} A 4 4 0 0 1 0.5 ${height - 4.5} Z" fill="#f20d63"/>
         <!-- Index text -->
         <text x="${indexWidth / 2}" y="14" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="middle">${index}</text>
         <!-- Label text -->
@@ -50,21 +50,40 @@ export class PillBreadcrumbDecorator {
         }
 
         const sortedNodes = this.topologicalSort(data.nodes, data.edges);
-        const range = new vscode.Range(0, 0, 0, 0);
+
+        // Sticky scroll: position decorations at top visible line
+        const topVisibleLine = editor.visibleRanges[0]?.start.line || 0;
+        const range = new vscode.Range(topVisibleLine, 0, topVisibleLine, 0);
 
         sortedNodes.forEach((node, idx) => {
             const isLast = idx === sortedNodes.length - 1;
             const svgUri = createPillSvgDataUri(idx + 1, node.label, isLast);
 
-            const decType = vscode.window.createTextEditorDecorationType({
+            // Interactive hover link to jump to code location
+            const hoverMarkdown = new vscode.MarkdownString(
+                `**Step ${idx + 1}: ${node.label}**\n\n` +
+                `[$(arrow-right) Jump to Code](command:caldera.jumpToNode?${encodeURIComponent(JSON.stringify([node.id, node.label]))})`
+            );
+            hoverMarkdown.isTrusted = true;
+
+            const decTypeOptions: vscode.DecorationRenderOptions = {
                 before: {
                     contentIconPath: vscode.Uri.parse(svgUri),
                     margin: "0 4px 6px 0",
                 },
-            });
+            };
+
+            // Line break after last pill decoration to prevent first code line from rendering beside it
+            if (isLast) {
+                decTypeOptions.after = {
+                    contentText: "\n",
+                };
+            }
+
+            const decType = vscode.window.createTextEditorDecorationType(decTypeOptions);
 
             this.decorationTypes.push(decType);
-            editor.setDecorations(decType, [range]);
+            editor.setDecorations(decType, [{ range, hoverMessage: hoverMarkdown }]);
         });
     }
 

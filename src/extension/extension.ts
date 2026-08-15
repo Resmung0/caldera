@@ -44,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 }
 
-                // Update breadcrumb pill decorations directly below breadcrumb bar (line 0)
+                // Update breadcrumb pill decorations directly below breadcrumb bar (line 0 / top visible line)
                 let matched = false;
                 for (const pipelineItem of pipelines) {
                     const parser = pipelineItem.parsers.find((p: any) => p.canParse(fileName, content));
@@ -76,7 +76,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.workspace.onDidSaveTextDocument(() => watchFiles()),
-        vscode.window.onDidChangeActiveTextEditor(() => watchFiles())
+        vscode.window.onDidChangeActiveTextEditor(() => watchFiles()),
+        vscode.window.onDidChangeTextEditorVisibleRanges(() => watchFiles())
     );
 
     const discover = (targetFile?: string) => {
@@ -102,6 +103,33 @@ export function activate(context: vscode.ExtensionContext) {
                 discover();
             } else {
                 console.error(`${LOG_PREFIX} ❌ Invalid category received: ${category}`);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand("caldera.jumpToNode", (nodeId: string, nodeLabel: string) => {
+            const activeEditor = vscode.window.activeTextEditor;
+            if (!activeEditor) return;
+
+            const text = activeEditor.document.getText();
+            const lines = text.split("\n");
+            const targetLabel = (nodeLabel || "").toLowerCase();
+            const targetId = (nodeId || "").toLowerCase();
+
+            let foundLine = -1;
+            for (let i = 0; i < lines.length; i++) {
+                const l = lines[i].toLowerCase();
+                if (l.includes(targetLabel) || l.includes(targetId)) {
+                    foundLine = i;
+                    break;
+                }
+            }
+
+            if (foundLine !== -1) {
+                const position = new vscode.Position(foundLine, 0);
+                activeEditor.selection = new vscode.Selection(position, position);
+                activeEditor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
             }
         })
     );

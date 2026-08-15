@@ -2,6 +2,7 @@ import { PillBreadcrumbDecorator, createPillSvgDataUri } from "../src/extension/
 
 const mockEditor = {
     setDecorations: jest.fn(),
+    visibleRanges: [{ start: { line: 0 }, end: { line: 20 } }],
 };
 
 jest.mock("vscode", () => {
@@ -14,7 +15,14 @@ jest.mock("vscode", () => {
                 dispose: jest.fn(),
             }),
         },
+        MarkdownString: jest.fn().mockImplementation((str) => ({
+            value: str,
+            isTrusted: false,
+        })),
         Range: jest.fn().mockImplementation((r1, c1, r2, c2) => ({ r1, c1, r2, c2 })),
+        Uri: {
+            parse: jest.fn().mockImplementation((str) => ({ fsPath: str })),
+        },
     };
 });
 
@@ -23,10 +31,10 @@ describe("PillBreadcrumbDecorator", () => {
         jest.clearAllMocks();
     });
 
-    it("should generate valid SVG data URI for pill badge", () => {
+    it("should generate valid pink SVG data URI for pill badge", () => {
         const uri = createPillSvgDataUri(1, "Requirements", false);
         expect(uri).toContain("data:image/svg+xml;utf8,");
-        expect(uri).toContain("1");
+        expect(uri).toContain("%23f20d63"); // Pink color (#f20d63) URL encoded
         expect(uri).toContain("Requirements");
     });
 
