@@ -9,7 +9,7 @@ import { AIAgentPipeline } from "./pipelines/AIAgentPipeline";
 import { RPAPipeline } from "./pipelines/RPAPipeline";
 import { PipelinePatternType } from "../shared/types";
 import { LOG_PREFIX } from "./constants";
-import { PillWebviewPanel } from "./PillWebviewPanel";
+import { PillPopupProvider } from "./PillPopupProvider";
 
 export function activate(context: vscode.ExtensionContext) {
     console.log(`${LOG_PREFIX} 🚀 Extension is activating...`);
@@ -43,22 +43,20 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 }
 
-                // If Pill/Badge webview is open, hot-reload/update it as well
-                if (PillWebviewPanel.currentPanel) {
-                    for (const pipeline of pipelines) {
-                        const parser = pipeline.parsers.find((p: any) => p.canParse(fileName, content));
-                        if (parser) {
-                            parser.parse(content, fileName).then((data: any) => {
-                                if (PillWebviewPanel.currentPanel) {
-                                    PillWebviewPanel.currentPanel.update({ ...data, category: pipeline.type });
-                                }
-                            }).catch((err: any) => {
-                                console.error(`${LOG_PREFIX} ❌ PillView hot-reload parse error:`, err);
-                            });
-                            break;
-                        }
+                // Update status bar pill badge
+                for (const pipelineItem of pipelines) {
+                    const parser = pipelineItem.parsers.find((p: any) => p.canParse(fileName, content));
+                    if (parser) {
+                        parser.parse(content, fileName).then((data: any) => {
+                            PillPopupProvider.updateStatusBarItem({ ...data, category: pipelineItem.type });
+                        }).catch(() => {
+                            PillPopupProvider.updateStatusBarItem(undefined);
+                        });
+                        break;
                     }
                 }
+            } else {
+                PillPopupProvider.updateStatusBarItem(undefined);
             }
         } catch (error) {
             console.error(`${LOG_PREFIX} ❌ Error in watchFiles:`, error);
@@ -128,7 +126,8 @@ export function activate(context: vscode.ExtensionContext) {
             try {
                 const data = await matchedParser.parse(content, fileName);
                 const finalData = { ...data, category: matchedPipeline.type };
-                PillWebviewPanel.createOrShow(context.extensionUri, finalData);
+                PillPopupProvider.updateStatusBarItem(finalData);
+                await PillPopupProvider.showQuickPickPopup(finalData);
             } catch (error: any) {
                 vscode.window.showErrorMessage(`Failed to parse pipeline file: ${error.message || error}`);
             }
@@ -144,8 +143,6 @@ async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IP
     provider.setLoading(true);
     console.log(`${LOG_PREFIX} 🔍 Discovering pipelines for category ${pipeline.type}. Target: ${targetFile || "All"}`);
 
-
-    // Collect files for each parser and keep track of which parser matches which file
     const parserFiles: { parser: ParserWithPatterns, files: vscode.Uri[] }[] = [];
     for (const parser of (pipeline.parsers as ParserWithPatterns[])) {
         const foundArrays = await Promise.all(
@@ -155,7 +152,6 @@ async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IP
         parserFiles.push({ parser, files: foundFiles });
     }
 
-    // Flatten all files for the UI, but keep parser association for parsing
     const allPipelineFiles: string[] = Array.from(new Set(parserFiles.flatMap(pf => pf.files.map(f => f.fsPath))));
 
     if (allPipelineFiles.length === 0) {
@@ -172,12 +168,10 @@ async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IP
         return;
     }
 
-    // Pick the file to parse
     let fileToParseUri: vscode.Uri | undefined;
     if (targetFile && allPipelineFiles.includes(targetFile)) {
         fileToParseUri = vscode.Uri.file(targetFile);
     } else {
-        // Pick the first file found
         fileToParseUri = parserFiles.find(pf => pf.files.length > 0)?.files[0];
     }
 
@@ -189,13 +183,11 @@ async function discoverPipelines(provider: PipelineWebviewProvider, pipeline: IP
     try {
         const document = await vscode.workspace.openTextDocument(fileToParseUri);
         const content = document.getText();
-        // Find the parser that matches this file
         const parser = parserFiles.find(pf => pf.files.some(f => f.fsPath === fileToParseUri!.fsPath))?.parser;
 
         if (parser) {
             console.log(`${LOG_PREFIX} ✅ Parsing ${fileToParseUri.fsPath} with ${parser.name}`);
             const data = await parser.parse(content, fileToParseUri.fsPath);
-            // Always set category to pipeline.type for correct webview highlight
             provider.updatePipeline({ ...data, category: pipeline.type }, allPipelineFiles);
         } else {
             console.log(`${LOG_PREFIX} ❓ No suitable parser for ${fileToParseUri.fsPath}`);
