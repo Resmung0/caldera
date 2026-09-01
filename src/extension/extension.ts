@@ -12,6 +12,16 @@ import { LOG_PREFIX } from "./constants";
 import { PillBreadcrumbDecorator } from "./PillBreadcrumbDecorator";
 import { PillPopupProvider } from "./PillPopupProvider";
 
+type MatchedPipelineParser = {
+    pipeline: IPipeline | Omit<IPipeline, "patterns">;
+    parser: any;
+};
+
+type PillCacheEntry = {
+    documentVersion: number;
+    data: any;
+};
+
 export function activate(context: vscode.ExtensionContext) {
     console.log(`${LOG_PREFIX} 🚀 Extension is activating...`);
 
@@ -24,12 +34,89 @@ export function activate(context: vscode.ExtensionContext) {
         new RPAPipeline(),
     ];
 
+    const pillCache = new Map<string, PillCacheEntry>();
+    let pillParseRequestId = 0;
+
+    const getDocumentCacheKey = (document: vscode.TextDocument) => {
+        return document.uri?.toString() || document.fileName;
+    };
+
+    const findMatchingPipelineParser = (fileName: string, content: string): MatchedPipelineParser | undefined => {
+        for (const pipeline of pipelines) {
+            const parser = pipeline.parsers.find((p: any) => p.canParse(fileName, content));
+            if (parser) {
+                return { pipeline, parser };
+            }
+        }
+
+        return undefined;
+    };
+
+    const renderPillsFromCache = (editor: vscode.TextEditor, allowStale = false): boolean => {
+        const cached = pillCache.get(getDocumentCacheKey(editor.document));
+        if (!cached || (!allowStale && cached.documentVersion !== editor.document.version)) {
+            return false;
+        }
+
+        PillBreadcrumbDecorator.updateDecorations(editor, cached.data);
+        PillPopupProvider.updateStatusBarItem(cached.data);
+        return true;
+    };
+
+    const updatePillsForEditor = async (editor: vscode.TextEditor, shouldParse: boolean) => {
+        if (renderPillsFromCache(editor, !shouldParse)) {
+            return;
+        }
+
+        if (!shouldParse) {
+            return;
+        }
+
+        const document = editor.document;
+        const fileName = document.fileName;
+        const content = document.getText();
+        const matched = findMatchingPipelineParser(fileName, content);
+
+        if (!matched) {
+            pillCache.delete(getDocumentCacheKey(document));
+            PillBreadcrumbDecorator.clearDecorations(editor);
+            PillPopupProvider.updateStatusBarItem(undefined);
+            return;
+        }
+
+        const requestId = ++pillParseRequestId;
+        const documentVersion = document.version;
+
+        try {
+            const data = await matched.parser.parse(content, fileName);
+            if (
+                requestId !== pillParseRequestId ||
+                document.version !== documentVersion ||
+                vscode.window.activeTextEditor?.document !== document
+            ) {
+                return;
+            }
+
+            const finalData = { ...data, category: matched.pipeline.type };
+            pillCache.set(getDocumentCacheKey(document), {
+                documentVersion,
+                data: finalData,
+            });
+            PillBreadcrumbDecorator.updateDecorations(editor, finalData);
+            PillPopupProvider.updateStatusBarItem(finalData);
+        } catch {
+            pillCache.delete(getDocumentCacheKey(document));
+            PillBreadcrumbDecorator.clearDecorations(editor);
+            PillPopupProvider.updateStatusBarItem(undefined);
+        }
+    };
+
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(PipelineWebviewProvider.viewType, provider)
     );
     console.log(`${LOG_PREFIX} ✅ Webview provider registered`);
 
-    const watchFiles = () => {
+    const watchFiles = (shouldParsePills: boolean) => {
         try {
             const activeEditor = vscode.window.activeTextEditor;
             if (activeEditor) {
@@ -44,27 +131,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 }
 
-                // Update breadcrumb pill decorations directly below breadcrumb bar (line 0 / top visible line)
-                let matched = false;
-                for (const pipelineItem of pipelines) {
-                    const parser = pipelineItem.parsers.find((p: any) => p.canParse(fileName, content));
-                    if (parser) {
-                        matched = true;
-                        parser.parse(content, fileName).then((data: any) => {
-                            const finalData = { ...data, category: pipelineItem.type };
-                            PillBreadcrumbDecorator.updateDecorations(activeEditor, finalData);
-                            PillPopupProvider.updateStatusBarItem(finalData);
-                        }).catch(() => {
-                            PillBreadcrumbDecorator.clearDecorations(activeEditor);
-                            PillPopupProvider.updateStatusBarItem(undefined);
-                        });
-                        break;
-                    }
-                }
-                if (!matched) {
-                    PillBreadcrumbDecorator.clearDecorations(activeEditor);
-                    PillPopupProvider.updateStatusBarItem(undefined);
-                }
+                updatePillsForEditor(activeEditor, shouldParsePills);
             } else {
                 PillBreadcrumbDecorator.clearDecorations();
                 PillPopupProvider.updateStatusBarItem(undefined);
@@ -75,9 +142,14 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     context.subscriptions.push(
-        vscode.workspace.onDidSaveTextDocument(() => watchFiles()),
-        vscode.window.onDidChangeActiveTextEditor(() => watchFiles()),
-        vscode.window.onDidChangeTextEditorVisibleRanges(() => watchFiles())
+        vscode.workspace.onDidSaveTextDocument(() => watchFiles(true)),
+        vscode.window.onDidChangeActiveTextEditor(() => watchFiles(true)),
+        vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
+            const activeEditor = vscode.window.activeTextEditor;
+            if (activeEditor && event.textEditor.document === activeEditor.document) {
+                updatePillsForEditor(event.textEditor, false);
+            }
+        })
     );
 
     const discover = (targetFile?: string) => {
@@ -163,8 +235,15 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             try {
-                const data = await matchedParser.parse(content, fileName);
-                const finalData = { ...data, category: matchedPipeline.type };
+                const cached = pillCache.get(getDocumentCacheKey(activeEditor.document));
+                const finalData = cached && cached.documentVersion === activeEditor.document.version
+                    ? cached.data
+                    : { ...(await matchedParser.parse(content, fileName)), category: matchedPipeline.type };
+
+                pillCache.set(getDocumentCacheKey(activeEditor.document), {
+                    documentVersion: activeEditor.document.version,
+                    data: finalData,
+                });
                 PillBreadcrumbDecorator.updateDecorations(activeEditor, finalData);
                 PillPopupProvider.updateStatusBarItem(finalData);
                 await PillPopupProvider.showQuickPickPopup(finalData);
@@ -175,7 +254,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     console.log(`${LOG_PREFIX} 🔍 Starting pipeline discovery...`);
-    watchFiles();
+    watchFiles(true);
     console.log(`${LOG_PREFIX} ✅ Extension activated successfully!`);
 }
 

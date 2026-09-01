@@ -40,20 +40,57 @@ export function createPillSvgDataUri(index: number, label: string, isLast: boole
 }
 
 export class PillBreadcrumbDecorator {
-    private static decorationTypes: vscode.TextEditorDecorationType[] = [];
+    private static decorations: { type: vscode.TextEditorDecorationType; hoverMessage: vscode.MarkdownString }[] = [];
+    private static currentEditor?: vscode.TextEditor;
+    private static currentSignature?: string;
+    private static currentLine?: number;
 
     public static updateDecorations(editor: vscode.TextEditor, data?: PipelineData) {
-        this.clearDecorations(editor);
-
         if (!data || !data.nodes || data.nodes.length === 0) {
+            this.clearDecorations(editor);
             return;
         }
 
         const sortedNodes = this.topologicalSort(data.nodes, data.edges);
+        const signature = this.createSignature(data, sortedNodes);
 
         // Sticky scroll: position decorations at top visible line
         const topVisibleLine = editor.visibleRanges[0]?.start.line || 0;
         const range = new vscode.Range(topVisibleLine, 0, topVisibleLine, 0);
+
+        if (this.currentEditor !== editor || this.currentSignature !== signature) {
+            this.rebuildDecorations(editor, sortedNodes, signature);
+        } else if (this.currentLine === topVisibleLine) {
+            return;
+        }
+
+        this.decorations.forEach(({ type, hoverMessage }) => {
+            editor.setDecorations(type, [{ range, hoverMessage }]);
+        });
+        this.currentLine = topVisibleLine;
+    }
+
+    public static clearDecorations(editor?: vscode.TextEditor) {
+        this.decorations.forEach(d => {
+            if (editor) {
+                editor.setDecorations(d.type, []);
+            }
+            d.type.dispose();
+        });
+        this.decorations = [];
+        this.currentEditor = undefined;
+        this.currentSignature = undefined;
+        this.currentLine = undefined;
+    }
+
+    private static rebuildDecorations(
+        editor: vscode.TextEditor,
+        sortedNodes: PipelineNode[],
+        signature: string
+    ) {
+        this.clearDecorations(editor);
+        this.currentEditor = editor;
+        this.currentSignature = signature;
 
         sortedNodes.forEach((node, idx) => {
             const isLast = idx === sortedNodes.length - 1;
@@ -82,19 +119,14 @@ export class PillBreadcrumbDecorator {
 
             const decType = vscode.window.createTextEditorDecorationType(decTypeOptions);
 
-            this.decorationTypes.push(decType);
-            editor.setDecorations(decType, [{ range, hoverMessage: hoverMarkdown }]);
+            this.decorations.push({ type: decType, hoverMessage: hoverMarkdown });
         });
     }
 
-    public static clearDecorations(editor?: vscode.TextEditor) {
-        this.decorationTypes.forEach(d => {
-            if (editor) {
-                editor.setDecorations(d, []);
-            }
-            d.dispose();
-        });
-        this.decorationTypes = [];
+    private static createSignature(data: PipelineData, sortedNodes: PipelineNode[]): string {
+        const nodeSignature = sortedNodes.map(node => `${node.id}:${node.label}`).join("|");
+        const edgeSignature = data.edges.map(edge => `${edge.source}->${edge.target}`).sort().join("|");
+        return `${data.filePath}|${data.framework}|${nodeSignature}|${edgeSignature}`;
     }
 
     private static topologicalSort(nodes: PipelineNode[], edges: any[]): PipelineNode[] {
