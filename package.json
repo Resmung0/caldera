@@ -20,6 +20,12 @@
         "command": "caldera.runPipeline",
         "title": "Run Pipeline",
         "category": "Caldera"
+      },
+      {
+        "command": "caldera.showPipelinePillView",
+        "title": "Show Pipeline Pill View",
+        "category": "Caldera",
+        "icon": "$(symbol-structure)"
       }
     ],
     "viewsContainers": {
@@ -38,6 +44,15 @@
           "id": "pipeline.view",
           "name": "Pipeline Viewer",
           "icon": "./public/icons/dark-icon.svg"
+        }
+      ]
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "caldera.showPipelinePillView",
+          "group": "navigation",
+          "when": "resourceExtname =~ /\\.(yml|yaml|py|xaml)$/"
         }
       ]
     }

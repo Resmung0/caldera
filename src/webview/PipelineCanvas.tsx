@@ -12,7 +12,6 @@ import ReactFlow, {
     NodeProps,
     applyNodeChanges,
     NodeChange,
-    Node
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
