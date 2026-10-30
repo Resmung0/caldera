@@ -1,12 +1,10 @@
-![Logo]()
-
 # Caldera: Pipeline Visualizer 🌋
 
 Like the center of an **active volcano**, Caldera centralizes complex flows in an intuitive graphical interface by transforming your static configuration files into clear, interactive visualizations directly within VS Code. Monitor and design all your pipelines and complex flows without leaving your favorite editor.
 
 ## **Demo**
 
-![App Screenshot]()
+
 
 ## **✨ Current Features**
 

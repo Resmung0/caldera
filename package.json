@@ -3,6 +3,7 @@
   "displayName": "Caldera",
   "description": "Real-time pipeline visualization in VS Code",
   "version": "0.0.1",
+  "publisher": "marcos-de-assis",
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -44,7 +45,7 @@
   },
   "scripts": {
     "clean": "rm -rf dist && rm -rf dist-webview && rm -rf node_modules",
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run build-webview",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "build-webview": "vite build",
@@ -88,5 +89,9 @@
     "react-dom": "^19.2.3",
     "react-icons": "^5.5.0",
     "reactflow": "^11.11.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Resmung0/caldera.git"
   }
 }
