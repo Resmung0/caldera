@@ -11,8 +11,10 @@ describe('PrefectParser', () => {
     expect(parser.canParse('flow.py', "from prefect import flow\n@flow\ndef f(): pass")).toBe(true);
     expect(parser.canParse('flow.py', "import prefect\n@prefect.flow\ndef f(): pass")).toBe(true);
     expect(parser.canParse('flow.py', "from prefect import flow as f\n@f\ndef g(): pass")).toBe(true);
+    expect(parser.canParse('flow.py', "from prefect import flow\n@flow()\ndef f(): pass")).toBe(true);
     expect(parser.canParse('flow.py', 'print("hello")')).toBe(false);
     expect(parser.canParse('flow.txt', "import prefect\n@flow\ndef f(): pass")).toBe(false);
+    expect(parser.canParse('flow.py', "from other import flow\n@flow\ndef f(): pass")).toBe(false);
   });
 
   it('should parse multiple flows in a single file', async () => {
@@ -37,7 +39,8 @@ def flow_2():
     `;
 
     const result = await parser.parse(content, 'test.py');
-    expect(result.nodes).toHaveLength(2); // task_a and task_b
+    expect(result.nodes.filter(({ data }) => data?.prefectType === 'task')).toHaveLength(2);
+    expect(result.nodes.filter(({ data }) => data?.prefectType === 'flow')).toHaveLength(2);
     expect(result.edges).toHaveLength(1); // task_a -> task_b
   });
 
@@ -73,7 +76,8 @@ def direct_call_flow():
     const result = await parser.parse(content, 'test.py');
 
     expect(result.framework).toBe('Prefect');
-    expect(result.nodes).toHaveLength(3);
+    expect(result.nodes.filter(({ data }) => data?.prefectType === 'task')).toHaveLength(3);
+    expect(result.nodes.filter(({ data }) => data?.prefectType === 'flow')).toHaveLength(2);
 
     // Edges should be deduplicated
     expect(result.edges).toHaveLength(3);
@@ -122,5 +126,59 @@ def my_flow():
     const result = await parser.parse(content, 'test.py');
     // There should be no edge from 'a_task' to 'b_task' because 'a' variable is not used in b_task call
     expect(result.edges).toHaveLength(0);
+  });
+
+  it('should include flows that do not contain tasks, including class and generator flows', async () => {
+    const classFlows = `
+from prefect import flow
+
+class Example:
+    @flow
+    def instance_flow(self):
+        return "instance"
+
+    @flow
+    @classmethod
+    def class_flow(cls):
+        return "class"
+
+    @flow
+    @staticmethod
+    def static_flow():
+        return "static"
+`;
+    const generatorFlow = `
+from prefect import flow
+
+@flow
+def generator():
+    for value in range(10):
+        yield value
+`;
+
+    const classResult = await parser.parse(classFlows, 'class_based_flow.py');
+    const generatorResult = await parser.parse(generatorFlow, 'generator_function_based_flow.py');
+
+    expect(classResult.nodes.map(({ id }) => id)).toEqual([
+      'instance_flow',
+      'class_flow',
+      'static_flow',
+    ]);
+    expect(generatorResult.nodes.map(({ id }) => id)).toEqual(['generator']);
+    expect(generatorResult.nodes[0].data?.prefectType).toBe('flow');
+  });
+
+  it('should recognize async flows and aliased Prefect imports', async () => {
+    const content = `
+from prefect import flow as prefect_flow
+
+@prefect_flow()
+async def async_flow():
+    return 1
+`;
+
+    expect(parser.canParse('async_flow.py', content)).toBe(true);
+    const result = await parser.parse(content, 'async_flow.py');
+    expect(result.nodes.map(({ id }) => id)).toEqual(['async_flow']);
   });
 });
