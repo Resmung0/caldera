@@ -1,0 +1,11 @@
+.vscode/**
+src/**
+tests/**
+node_modules/**
+!node_modules/js-yaml/**
+!node_modules/argparse/**
+*.log
+webview_dev.log
+tsconfig*.json
+vite.config.ts
+jest.config.js
