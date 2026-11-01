@@ -93,5 +93,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/Resmung0/caldera.git"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "@parcel/watcher@2.6.0": true
   }
 }
