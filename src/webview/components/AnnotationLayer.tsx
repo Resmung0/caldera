@@ -11,6 +11,7 @@ interface AnnotationLayerProps {
   animationEnabled?: boolean;
   onDeleteAnnotation?: (id: string) => void;
   onEditAnnotation?: (id: string, position: { x: number, y: number }) => void;
+  onCollapseFlow?: (flowId: string) => void;
 }
 
 /**
@@ -27,7 +28,8 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({
   showLabels = true,
   animationEnabled = true,
   onDeleteAnnotation,
-  onEditAnnotation
+  onEditAnnotation,
+  onCollapseFlow
 }) => {
   const { getNodes } = useReactFlow();
   const { x: viewportX, y: viewportY, zoom } = useViewport();
@@ -93,6 +95,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({
             animationEnabled={animationEnabled}
             onDeleteAnnotation={onDeleteAnnotation}
             onEditAnnotation={onEditAnnotation}
+            onCollapseFlow={onCollapseFlow}
           />
         )
       )}

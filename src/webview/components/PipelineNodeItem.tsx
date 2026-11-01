@@ -12,7 +12,8 @@ import {
   FileCode,
   List,
   Folder,
-  Sparkles
+  Sparkles,
+  Workflow,
 } from 'lucide-react';
 import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
 import { FiDatabase } from 'react-icons/fi';
@@ -121,7 +122,16 @@ const rippleVariants = {
 };
 
 export const PipelineNodeItem = ({ data, id }: NodeProps) => {
-  const { layoutDirection = 'TB', isSelectionMode = false, isSelected = false, type } = data;
+  const {
+    layoutDirection = 'TB',
+    isSelectionMode = false,
+    isSelected = false,
+    type,
+    prefectType,
+    prefectTaskCount = 0,
+    isFlowExpanded = false,
+    onToggleFlow,
+  } = data;
   const [isDepsExpanded, setIsDepsExpanded] = useState(false);
   const [isParamsExpanded, setIsParamsExpanded] = useState(false);
 
@@ -307,6 +317,8 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
       className={`pipeline-node-item ${isSelectionMode ? 'selection-mode' : ''} ${isSelected ? 'selected' : ''} ${config.className}`}
       variants={nodeVariants}
       animate={config.animationVariant}
+      data-prefect-type={prefectType}
+      data-expanded={prefectType === 'flow' ? String(isFlowExpanded) : undefined}
     >
       <Handle type="target" position={targetPosition} className="handle" />
 
@@ -325,13 +337,37 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
 
       <div className="node-header">
         <div className="node-icon">
-          <Terminal size={16} color="#a0aec0" />
+          {prefectType === 'flow'
+            ? <Workflow size={16} color="#f20d63" />
+            : <Terminal size={16} color="#a0aec0" />}
         </div>
         <div className="node-title" title={data.label}>{data.label}</div>
-        {/* Remove the chevron toggle from header since we'll use a badge below */}
+        {prefectType && <span className="prefect-node-type">{prefectType === 'flow' ? 'Flow' : 'Task'}</span>}
+        {prefectType === 'flow' && (
+          <button
+            type="button"
+            className="prefect-flow-toggle nodrag nopan"
+            aria-label={`${isFlowExpanded ? 'Collapse' : 'Expand'} ${data.label} tasks`}
+            aria-expanded={isFlowExpanded}
+            disabled={prefectTaskCount === 0}
+            onPointerDownCapture={(event) => event.stopPropagation()}
+            onMouseDownCapture={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleFlow?.(id);
+            }}
+          >
+            <ChevronDown size={14} className={isFlowExpanded ? 'expanded' : ''} />
+          </button>
+        )}
       </div>
 
       <div className="node-body">
+        {prefectType === 'flow' && (
+          <div className="prefect-task-count">
+            {prefectTaskCount} {prefectTaskCount === 1 ? 'task' : 'tasks'}
+          </div>
+        )}
         {data.framework && (
           <div className="node-meta">
             {(() => {
@@ -395,6 +431,51 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
           box-shadow: 0 4px 6px var(--color-shadow);
           transition: all 0.3s ease;
           position: relative;
+        }
+
+        .prefect-node-type {
+          border: 1px solid var(--color-border);
+          border-radius: 999px;
+          padding: 2px 7px;
+          color: var(--color-text-secondary);
+          font-size: 10px;
+          font-weight: 700;
+        }
+
+        .prefect-flow-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          padding: 0;
+          border: 1px solid var(--color-border);
+          border-radius: 6px;
+          color: var(--color-text-primary);
+          background: var(--color-bg-secondary);
+          cursor: pointer;
+        }
+
+        .prefect-flow-toggle:hover:not(:disabled) {
+          border-color: #f20d63;
+          color: #f20d63;
+        }
+
+        .prefect-flow-toggle:disabled {
+          cursor: default;
+          opacity: 0.5;
+        }
+
+        .prefect-flow-toggle svg {
+          transition: transform 0.2s ease;
+        }
+
+        .prefect-flow-toggle svg.expanded {
+          transform: rotate(180deg);
+        }
+
+        .prefect-task-count {
+          color: var(--color-text-secondary);
         }
         
         .pipeline-node-item:hover {
