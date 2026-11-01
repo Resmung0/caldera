@@ -43,8 +43,21 @@ export function getVisiblePrefectGraph<TNode extends GraphNode, TEdge extends Gr
       .map(({ id }) => id)
   );
   const visibleNodes = nodes.filter((node) => {
-    const flowIds = node.data.prefectFlowIds ?? [];
-    return flowIds.length === 0 || flowIds.some((flowId) => expandedFlowIds.has(flowId));
+    if (node.data?.prefectType === 'flow') {
+      return (node.data.prefectFlowIds ?? []).length === 0 &&
+        !node.data.isFlowExpanded;
+    }
+
+    if (node.data?.prefectType === 'task') {
+      const flowIds = node.data.prefectFlowIds ?? [];
+      if (flowIds.length === 0) return true;
+      return nodes.some((flow) =>
+        expandedFlowIds.has(flow.id) &&
+        (flow.data?.prefectTaskIds ?? []).includes(node.id)
+      );
+    }
+
+    return true;
   });
   const visibleNodeIds = new Set(visibleNodes.map(({ id }) => id));
 
@@ -63,28 +76,13 @@ export function getExpandedPrefectFlowAnnotations(
   return nodes.flatMap((node) => {
     if (node.data?.prefectType !== 'flow' || !node.data.isFlowExpanded) return [];
 
-    const groupedNodeIds = new Set<string>([node.id]);
-    const addDescendants = (flowId: string, visited = new Set<string>()) => {
-      if (visited.has(flowId)) return;
-      const nextVisited = new Set(visited).add(flowId);
-      const flow = nodesById.get(flowId);
-      if (!flow) return;
-
-      for (const taskId of flow.data?.prefectTaskIds ?? []) {
-        groupedNodeIds.add(taskId);
-      }
-      for (const childFlowId of flow.data?.prefectChildFlowIds ?? []) {
-        groupedNodeIds.add(childFlowId);
-        addDescendants(childFlowId, nextVisited);
-      }
-    };
-    addDescendants(node.id);
-    if (groupedNodeIds.size === 1) return [];
+    const taskIds = node.data.prefectTaskIds ?? [];
+    if (taskIds.length === 0) return [];
 
     const now = new Date(0);
     return [{
       id: `prefect-flow:${node.id}`,
-      nodeIds: Array.from(groupedNodeIds),
+      nodeIds: taskIds.filter((taskId) => nodesById.has(taskId)),
       patternType: PipelinePatternType.DATA_PROCESSING,
       patternSubtype: 'flow',
       color: '#f20d63',
@@ -92,6 +90,7 @@ export function getExpandedPrefectFlowAnnotations(
       createdAt: now,
       modifiedAt: now,
       source: 'prefect-flow',
+      flowId: node.id,
     }];
   });
 }

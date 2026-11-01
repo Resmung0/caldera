@@ -37,7 +37,6 @@ describe('Prefect graph expansion', () => {
 
     expect(expandedNodes[0].data.isFlowExpanded).toBe(true);
     expect(graph.nodes.map(({ id }) => id)).toEqual([
-      'flow-a',
       'flow-b',
       'task-shared',
       'task-a',
@@ -45,22 +44,37 @@ describe('Prefect graph expansion', () => {
       'ordinary-node',
     ]);
     expect(graph.edges.map(({ id }) => id)).toEqual([
-      'flow-edge',
       'task-edge',
       'unassigned-edge',
     ]);
   });
 
-  it('creates a pink, read-only annotation around the expanded flow and its tasks', () => {
+  it('restores the original Flow node and hides its tasks when a Flow annotation collapses it', () => {
+    const expandedNodes = toggleFlowNode(nodes, 'flow-a');
+    const collapsedNodes = toggleFlowNode(expandedNodes, 'flow-a');
+    const graph = getVisiblePrefectGraph(collapsedNodes, edges);
+
+    expect(graph.nodes.map(({ id }) => id)).toEqual([
+      'flow-a',
+      'flow-b',
+      'task-unassigned',
+      'ordinary-node',
+    ]);
+    expect(graph.edges.map(({ id }) => id)).toEqual(['flow-edge', 'unassigned-edge']);
+    expect(getExpandedPrefectFlowAnnotations(collapsedNodes)).toEqual([]);
+  });
+
+  it('creates a pink annotation around the expanded flow contents', () => {
     const expandedNodes = toggleFlowNode(nodes, 'flow-a');
     const [annotation] = getExpandedPrefectFlowAnnotations(expandedNodes);
 
     expect(annotation).toMatchObject({
       id: 'prefect-flow:flow-a',
-      nodeIds: ['flow-a', 'task-shared', 'task-a'],
+      nodeIds: ['task-shared', 'task-a'],
       color: '#f20d63',
       label: 'Flow: Flow A',
       source: 'prefect-flow',
+      flowId: 'flow-a',
     });
   });
 
@@ -102,23 +116,18 @@ describe('Prefect graph expansion', () => {
     const rootExpanded = toggleFlowNode(nestedNodes, 'root-flow');
     const visibleAfterRootExpansion = getVisiblePrefectGraph(rootExpanded, []);
     expect(visibleAfterRootExpansion.nodes.map(({ id }) => id)).toEqual([
-      'root-flow',
-      'child-flow',
       'root-task',
+      'child-task',
     ]);
 
     const allExpanded = toggleFlowNode(rootExpanded, 'child-flow');
     expect(getVisiblePrefectGraph(allExpanded, []).nodes.map(({ id }) => id)).toEqual([
-      'root-flow',
-      'child-flow',
       'root-task',
       'child-task',
     ]);
     expect(getExpandedPrefectFlowAnnotations(allExpanded)[0].nodeIds).toEqual([
-      'root-flow',
       'root-task',
       'child-task',
-      'child-flow',
     ]);
   });
 

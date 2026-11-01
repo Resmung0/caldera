@@ -480,6 +480,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                     animationEnabled={true}
                     onDeleteAnnotation={handleDeleteAnnotation}
                     onEditAnnotation={handleEditAnnotation}
+                    onCollapseFlow={toggleFlow}
                 />
                 {selectionState.isSelectionMode && (
                     <>
