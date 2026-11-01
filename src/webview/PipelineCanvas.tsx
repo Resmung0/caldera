@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { toPng } from 'html-to-image';
 import ReactFlow, {
     Background,
@@ -11,6 +11,7 @@ import ReactFlow, {
     MarkerType,
     NodeProps,
     applyNodeChanges,
+    Edge,
     NodeChange,
     Node
 } from 'reactflow';
@@ -37,9 +38,65 @@ import {
 import { useSelection } from './hooks/useSelection';
 import { useAnnotations } from './hooks/useAnnotations';
 import { usePipelineRunner } from './hooks/usePipelineRunner';
+import {
+    getExpandedPrefectFlowAnnotations,
+    getVisiblePrefectGraph,
+    toggleFlowNode,
+} from './prefectGraph';
 
 const nodeWidth = 220;
 const nodeHeight = 80;
+
+interface PipelineNodeContextValue {
+    layoutDirection: 'TB' | 'LR';
+    isSelectionMode: boolean;
+    selectedNodeIds: string[];
+    onToggleFlow: (flowId: string) => void;
+}
+
+const PipelineNodeContext = createContext<PipelineNodeContextValue | undefined>(undefined);
+
+const PipelineNodeRenderer = (props: NodeProps) => {
+    const context = useContext(PipelineNodeContext);
+    if (!context) {
+        throw new Error('PipelineNodeRenderer must be rendered inside PipelineNodeContext');
+    }
+
+    return (
+        <PipelineNodeItem
+            {...props}
+            data={{
+                ...props.data,
+                layoutDirection: context.layoutDirection,
+                isSelectionMode: context.isSelectionMode,
+                isSelected: context.selectedNodeIds.includes(props.id),
+                isFlowExpanded: Boolean(props.data.isFlowExpanded),
+                onToggleFlow: context.onToggleFlow,
+            }}
+        />
+    );
+};
+
+const pipelineNodeTypes = { custom: PipelineNodeRenderer };
+
+const layoutVisibleNodes = (
+    nodes: Node[],
+    edges: Edge[],
+    direction: 'TB' | 'LR'
+): Node[] => {
+    const visibleGraph = getVisiblePrefectGraph(nodes, edges);
+    const { nodes: layoutedNodes } = getLayoutedElements(
+        visibleGraph.nodes,
+        visibleGraph.edges,
+        direction
+    );
+    const positions = new Map(layoutedNodes.map((node) => [node.id, node.position]));
+
+    return nodes.map((node) => {
+        const position = positions.get(node.id);
+        return position ? { ...node, position } : node;
+    });
+};
 
 // --- Layout Logic ---
 
@@ -126,10 +183,15 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
     dagreGraph.setDefaultEdgeLabel(() => ({}));
     dagreGraph.setGraph({ rankdir: direction });
 
-    nodes.forEach((node) => {
+    const getDimensions = (node: Node) => {
         const isArtifact = node.data?.type === 'artifact';
         const w = isArtifact ? 180 : nodeWidth;
         const h = isArtifact ? 36 : nodeHeight;
+        return { w, h };
+    };
+
+    nodes.forEach((node) => {
+        const { w, h } = getDimensions(node);
         dagreGraph.setNode(node.id, { width: w, height: h });
     });
 
@@ -140,9 +202,7 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
     dagre.layout(dagreGraph);
 
     const layoutedNodes = nodes.map((node) => {
-        const isArtifact = node.data?.type === 'artifact';
-        const w = isArtifact ? 180 : nodeWidth;
-        const h = isArtifact ? 36 : nodeHeight;
+        const { w, h } = getDimensions(node);
         const nodeWithPosition = dagreGraph.node(node.id);
         return {
             ...node,
@@ -207,27 +267,41 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
         onCategorySelect(category);
     };
 
+    const toggleFlow = useCallback((flowId: string) => {
+        setNodes((currentNodes) => {
+            const toggledNodes = toggleFlowNode(currentNodes, flowId);
+            return layoutVisibleNodes(toggledNodes, edges, layoutDirection);
+        });
+    }, [edges, layoutDirection, setNodes]);
+
+    const visibleGraph = useMemo(
+        () => getVisiblePrefectGraph(nodes, edges),
+        [edges, nodes]
+    );
+    const flowAnnotations = useMemo(
+        () => getExpandedPrefectFlowAnnotations(nodes),
+        [nodes]
+    );
+    const visibleAnnotations = useMemo(
+        () => [...annotations, ...flowAnnotations],
+        [annotations, flowAnnotations]
+    );
+
+    const nodeContextValue = useMemo(() => ({
+        layoutDirection,
+        isSelectionMode: selectionState.isSelectionMode,
+        selectedNodeIds: selectionState.selectedNodeIds,
+        onToggleFlow: toggleFlow,
+    }), [
+        layoutDirection,
+        selectionState.isSelectionMode,
+        selectionState.selectedNodeIds,
+        toggleFlow,
+    ]);
 
     const toggleLayoutDirection = useCallback(() => {
         setLayoutDirection((prevDirection) => (prevDirection === 'TB' ? 'LR' : 'TB'));
     }, []);
-
-    const nodeTypes = useMemo(
-        () => ({
-            custom: (props: NodeProps) => (
-                <PipelineNodeItem
-                    {...props}
-                    data={{
-                        ...props.data,
-                        layoutDirection,
-                        isSelectionMode: selectionState.isSelectionMode,
-                        isSelected: selectionState.selectedNodeIds.includes(props.id)
-                    }}
-                />
-            ),
-        }),
-        [layoutDirection, selectionState.isSelectionMode, selectionState.selectedNodeIds]
-    );
 
     const edgeTypes = useMemo(
         () => ({
@@ -301,15 +375,16 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
             },
         }));
 
-        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-            initialNodes,
-            initialEdges,
-            layoutDirection
-        );
+        setNodes(layoutVisibleNodes(initialNodes, initialEdges, layoutDirection));
+        setEdges(initialEdges);
+    }, [data, setNodes, setEdges]);
 
-        setNodes([...layoutedNodes]);
-        setEdges([...layoutedEdges]);
-    }, [data, setNodes, setEdges, layoutDirection]);
+    useEffect(() => {
+        if (nodes.length === 0) return;
+        setNodes((currentNodes) =>
+            layoutVisibleNodes(currentNodes, edges, layoutDirection)
+        );
+    }, [layoutDirection]);
 
     // Handle empty state
     if (data.nodes.length === 0) {
@@ -354,16 +429,17 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
         <div style={{ width: '100%', height: '100vh', background: 'var(--color-bg-tertiary)' }}>
             <TopPanel onCategorySelect={handleCategorySelect} activeCategory={activeCategory} />
 
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                onNodesChange={handleNodesChange}
-                onEdgesChange={onEdgesChange}
-                onPaneClick={handleCanvasClick}
-                panOnDrag={!selectionState.isSelectionMode}
-                selectionMode={null as any} // Disable default selection box to use our custom one
+            <PipelineNodeContext.Provider value={nodeContextValue}>
+                <ReactFlow
+                    nodes={visibleGraph.nodes}
+                    edges={visibleGraph.edges}
+                    nodeTypes={pipelineNodeTypes}
+                    edgeTypes={edgeTypes}
+                    onNodesChange={handleNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onPaneClick={handleCanvasClick}
+                    panOnDrag={!selectionState.isSelectionMode}
+                    selectionMode={null as any} // Disable default selection box to use our custom one
                 onNodeMouseEnter={(_, node) => {
                     if (!selectionState.isSelectionMode) {
                         setEdges((eds) => eds.map(e => {
@@ -398,7 +474,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
             >
                 <Background color="var(--color-bg-secondary)" gap={20} size={1} />
                 <AnnotationLayer
-                    annotations={annotations}
+                    annotations={visibleAnnotations}
                     isDarkTheme={true}
                     showLabels={true}
                     animationEnabled={true}
@@ -476,7 +552,8 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({ data, availableP
                         />
                     </div>
                 )}
-            </ReactFlow>
+                </ReactFlow>
+            </PipelineNodeContext.Provider>
 
             <style>{`
         .react-flow__edge.active .react-flow__edge-path {

@@ -41,7 +41,56 @@ def flow_2():
     const result = await parser.parse(content, 'test.py');
     expect(result.nodes.filter(({ data }) => data?.prefectType === 'task')).toHaveLength(2);
     expect(result.nodes.filter(({ data }) => data?.prefectType === 'flow')).toHaveLength(2);
+    expect(result.nodes.find(({ id }) => id === 'flow_1')?.data).toMatchObject({
+      prefectTaskIds: ['task_a', 'task_b'],
+      prefectTaskCount: 2,
+      prefectTasks: [
+        { id: 'task_a', label: 'task_a', dependencies: [] },
+        { id: 'task_b', label: 'task_b', dependencies: ['task_a'] },
+      ],
+    });
+    expect(result.nodes.find(({ id }) => id === 'task_a')?.data.prefectFlowIds).toEqual([
+      'flow_1',
+      'flow_2',
+    ]);
     expect(result.edges).toHaveLength(1); // task_a -> task_b
+  });
+
+  it('should connect a task through a nested flow to its parent flow', async () => {
+    const content = `
+from prefect import flow, task
+
+@task
+def generate_a_number():
+    return 42
+
+@flow
+def is_number_even(number: int):
+    return number % 2 == 0
+
+@flow
+def even_or_odd():
+    number = generate_a_number()
+    if is_number_even(number):
+        print("The number is even")
+    else:
+        print("The number is odd")
+`;
+
+    const result = await parser.parse(content, 'function_based_flow.py');
+
+    expect(result.edges).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: 'generate_a_number', target: 'is_number_even' }),
+      expect.objectContaining({ source: 'is_number_even', target: 'even_or_odd' }),
+    ]));
+    expect(result.nodes.find(({ id }) => id === 'even_or_odd')?.data).toMatchObject({
+      prefectChildFlowIds: ['is_number_even'],
+      prefectTaskIds: ['generate_a_number'],
+      prefectTaskCount: 1,
+    });
+    expect(result.nodes.find(({ id }) => id === 'is_number_even')?.data.prefectFlowIds).toEqual([
+      'even_or_odd',
+    ]);
   });
 
   it('should parse tasks and dependencies from a flow with .submit() and direct calls', async () => {
@@ -78,6 +127,12 @@ def direct_call_flow():
     expect(result.framework).toBe('Prefect');
     expect(result.nodes.filter(({ data }) => data?.prefectType === 'task')).toHaveLength(3);
     expect(result.nodes.filter(({ data }) => data?.prefectType === 'flow')).toHaveLength(2);
+    expect(result.nodes.find(({ id }) => id === 'submit_style_flow')?.data.prefectTaskCount).toBe(3);
+    expect(result.nodes.find(({ id }) => id === 'direct_call_flow')?.data.prefectTaskIds).toEqual([
+      'task_a',
+      'task_b',
+      'task_c',
+    ]);
 
     // Edges should be deduplicated
     expect(result.edges).toHaveLength(3);
@@ -180,5 +235,42 @@ async def async_flow():
     expect(parser.canParse('async_flow.py', content)).toBe(true);
     const result = await parser.parse(content, 'async_flow.py');
     expect(result.nodes.map(({ id }) => id)).toEqual(['async_flow']);
+  });
+
+  it('should associate only tasks called inside each flow and count taskless flows as zero', async () => {
+    const content = `
+from prefect import flow, task
+
+@task
+def shared_task():
+    return 1
+
+@task
+def unused_task():
+    return 2
+
+@flow
+def populated_flow():
+    shared_task()
+
+@flow
+def empty_flow():
+    return "no tasks"
+`;
+
+    const result = await parser.parse(content, 'membership.py');
+
+    expect(result.nodes.find(({ id }) => id === 'populated_flow')?.data).toMatchObject({
+      prefectTaskIds: ['shared_task'],
+      prefectTaskCount: 1,
+    });
+    expect(result.nodes.find(({ id }) => id === 'empty_flow')?.data).toMatchObject({
+      prefectTaskIds: [],
+      prefectTaskCount: 0,
+    });
+    expect(result.nodes.find(({ id }) => id === 'shared_task')?.data.prefectFlowIds).toEqual([
+      'populated_flow',
+    ]);
+    expect(result.nodes.find(({ id }) => id === 'unused_task')?.data.prefectFlowIds).toEqual([]);
   });
 });

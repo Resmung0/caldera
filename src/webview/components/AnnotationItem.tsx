@@ -13,6 +13,7 @@ import {
   VectorSquare,
   ChartSpline,
   Globe,
+  Workflow,
   Settings2,
   Trash2,
   HelpCircle,
@@ -77,7 +78,12 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
   };
 
   const zIndex = getAnnotationZIndex(index);
-  const Icon = useMemo(() => getPatternIcon(annotation.patternType, annotation.patternSubtype), [annotation.patternType, annotation.patternSubtype]);
+  const Icon = useMemo(
+    () => annotation.source === 'prefect-flow'
+      ? Workflow
+      : getPatternIcon(annotation.patternType, annotation.patternSubtype),
+    [annotation.patternType, annotation.patternSubtype, annotation.source]
+  );
 
   return (
     <div
@@ -106,21 +112,21 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
         zIndex: -1
       }} />
 
-      {/* Action Buttons in top-right corner */}
-      <div
-        className="annotation-actions"
-        style={{
-          position: 'absolute',
-          top: -12,
-          right: 8,
-          display: 'flex',
-          gap: '6px',
-          pointerEvents: 'auto',
-          zIndex: zIndex + 3,
-          opacity: 0,
-          transition: 'opacity 0.2s ease'
-        }}
-      >
+      {annotation.source !== 'prefect-flow' && (
+        <div
+          className="annotation-actions"
+          style={{
+            position: 'absolute',
+            top: -12,
+            right: 8,
+            display: 'flex',
+            gap: '6px',
+            pointerEvents: 'auto',
+            zIndex: zIndex + 3,
+            opacity: 0,
+            transition: 'opacity 0.2s ease'
+          }}
+        >
         {/* Help Button */}
         <div
           style={{ position: 'relative' }} // For positioning the tooltip
@@ -216,7 +222,8 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
         >
           <Trash2 size={12} />
         </button>
-      </div>
+        </div>
+      )}
 
       {/* Pattern Icon in top-left corner */}
       <div

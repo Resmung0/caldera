@@ -6,8 +6,9 @@ type PrefectDecorator = "flow" | "task";
 interface DecoratedFunction {
   name: string;
   decorator: PrefectDecorator;
-  start: number;
   bodyStart: number;
+  bodyEnd: number;
+  indentation: number;
 }
 
 export class PrefectParser implements IParser {
@@ -21,20 +22,69 @@ export class PrefectParser implements IParser {
     const nodes: PipelineNode[] = [];
     const edges: PipelineEdge[] = [];
     const functions = this.getDecoratedFunctions(content);
-    const taskNames = functions
-      .filter(({ decorator }) => decorator === "task")
-      .map(({ name }) => name);
+    const callableNames = functions.map(({ name }) => name);
+    const functionsByName = new Map(functions.map((fn) => [fn.name, fn]));
+    const flowCalls = new Map(
+      functions
+        .filter(({ decorator }) => decorator === "flow")
+        .map((flow) => [
+          flow.name,
+          this.getCalledFunctions(
+            content.slice(flow.bodyStart, flow.bodyEnd),
+            callableNames
+          ),
+        ] as const)
+    );
+    const flowParents = this.getFlowParents(flowCalls, functionsByName);
+    const flowTasks = new Map<string, string[]>();
+    for (const flowName of flowCalls.keys()) {
+      flowTasks.set(
+        flowName,
+        this.getNestedTasks(flowName, flowCalls, functionsByName)
+      );
+    }
 
-    for (const { name, decorator } of functions) {
+    this.extractEdgesFromFlows(content, functions, flowCalls, edges);
+
+    for (const fn of functions) {
+      const { name, decorator } = fn;
+      const taskIds = flowTasks.get(name) ?? [];
+      const parentFlowIds = flowParents.get(name) ?? [];
+      const childFlowIds = flowCalls.get(name)?.filter(
+        (calledName) => functionsByName.get(calledName)?.decorator === "flow"
+      ) ?? [];
       nodes.push({
         id: name,
         label: name,
         type: "default",
-        data: { framework: this.name, prefectType: decorator },
+        data: {
+          framework: this.name,
+          prefectType: decorator,
+          ...(decorator === "flow"
+            ? {
+                prefectFlowIds: parentFlowIds,
+                prefectChildFlowIds: childFlowIds,
+                prefectTaskIds: taskIds,
+                prefectTaskCount: taskIds.length,
+                prefectTasks: taskIds.map((taskId) => ({
+                  id: taskId,
+                  label: taskId,
+                  dependencies: edges
+                    .filter((edge) => edge.target === taskId && taskIds.includes(edge.source))
+                    .map((edge) => edge.source),
+                })),
+              }
+            : {
+                prefectFlowIds: Array.from(flowCalls)
+                  .filter(([, calledNames]) =>
+                    calledNames.includes(name) &&
+                    functionsByName.get(name)?.decorator === "task"
+                  )
+                  .map(([flowName]) => flowName),
+              }),
+        },
       });
     }
-
-    this.extractEdgesFromFlows(content, taskNames, edges);
 
     return {
       filePath,
@@ -65,7 +115,7 @@ export class PrefectParser implements IParser {
     }
 
     const functions: DecoratedFunction[] = [];
-    const functionRegex = /^[ \t]*(?:async\s+)?def\s+(\w+)\s*\([^)]*\)\s*(?:->\s*[^:]+)?:/gm;
+    const functionRegex = /^([ \t]*)(?:async\s+)?def\s+(\w+)\s*\([^)]*\)\s*(?:->\s*[^:]+)?:/gm;
 
     while ((match = functionRegex.exec(content)) !== null) {
       const decoratorLines: string[] = [];
@@ -93,61 +143,147 @@ export class PrefectParser implements IParser {
 
       if (decorator) {
         functions.push({
-          name: match[1],
+          name: match[2],
           decorator,
-          start: match.index,
           bodyStart: functionRegex.lastIndex,
+          bodyEnd: content.length,
+          indentation: match[1].length,
         });
       }
     }
 
-    return functions.map((fn, index) => {
-      const nextFunctionStart = functions[index + 1]?.start ?? content.length;
+    return functions.map((fn) => {
+      const body = content.slice(fn.bodyStart);
+      const lineRegex = /[^\r\n]+/g;
+      let bodyEnd = content.length;
+      let lineMatch: RegExpExecArray | null;
+      while ((lineMatch = lineRegex.exec(body)) !== null) {
+        const line = lineMatch[0];
+        if (line.trim() && !line.trimStart().startsWith("#")) {
+          const indentation = line.match(/^[ \t]*/)?.[0].length ?? 0;
+          if (indentation <= fn.indentation) {
+            bodyEnd = fn.bodyStart + lineMatch.index;
+            break;
+          }
+        }
+      }
       return {
         ...fn,
-        bodyStart: Math.min(fn.bodyStart, nextFunctionStart),
+        bodyEnd,
       };
     });
   }
 
-  private extractEdgesFromFlows(content: string, taskNames: string[], edges: PipelineEdge[]): void {
-    const functions = this.getDecoratedFunctions(content).filter(({ decorator }) => decorator === "flow");
-    const taskSet = new Set(taskNames);
+  private getCalledFunctions(flowBody: string, callableNames: string[]): string[] {
+    return callableNames.filter((name) =>
+      new RegExp(`\\b${name}(?:\\.submit)?\\s*\\(`).test(flowBody)
+    );
+  }
 
-    for (const flow of functions) {
-      const nextFunction = this.getDecoratedFunctions(content)
-        .find(({ start }) => start > flow.start)?.start ?? content.length;
-      const flowBody = content.slice(flow.bodyStart, nextFunction);
-      const calls = new Map<string, string[]>();
-      const callRegex = /\b(\w+)(?:\.submit)?\s*\(([^)]*)\)/g;
-      let call: RegExpExecArray | null;
+  private getNestedTasks(
+    flowName: string,
+    flowCalls: Map<string, string[]>,
+    functionsByName: Map<string, DecoratedFunction>,
+    visitedFlows = new Set<string>()
+  ): string[] {
+    if (visitedFlows.has(flowName)) return [];
+    const nextVisitedFlows = new Set(visitedFlows).add(flowName);
+    const taskIds = new Set<string>();
 
-      while ((call = callRegex.exec(flowBody)) !== null) {
-        const calledTask = call[1];
-        const args = call[2];
-        if (!taskSet.has(calledTask)) continue;
-        const dependencies = [...taskSet].filter((taskName) =>
-          taskName !== calledTask &&
-          new RegExp(`\\b${taskName}\\s*\\(`).test(args)
-        );
-        for (const previousTask of taskNames) {
-          if (previousTask === calledTask) continue;
-          const assignedResult = new RegExp(
-            `\\b(\\w+)\\s*=\\s*${previousTask}(?:\\.submit)?\\s*\\(`
-          ).exec(flowBody);
-          if (assignedResult && new RegExp(`\\b${assignedResult[1]}\\b`).test(args)) {
-            dependencies.push(previousTask);
-          }
+    for (const calledName of flowCalls.get(flowName) ?? []) {
+      const calledFunction = functionsByName.get(calledName);
+      if (calledFunction?.decorator === "task") {
+        taskIds.add(calledName);
+      } else if (calledFunction?.decorator === "flow") {
+        for (const taskId of this.getNestedTasks(
+          calledName,
+          flowCalls,
+          functionsByName,
+          nextVisitedFlows
+        )) {
+          taskIds.add(taskId);
         }
-        calls.set(calledTask, dependencies);
+      }
+    }
+
+    return Array.from(taskIds);
+  }
+
+  private getFlowParents(
+    flowCalls: Map<string, string[]>,
+    functionsByName: Map<string, DecoratedFunction>
+  ): Map<string, string[]> {
+    const parents = new Map<string, string[]>();
+    for (const [parentFlowId, calledNames] of flowCalls) {
+      for (const childName of calledNames) {
+        if (functionsByName.get(childName)?.decorator !== "flow") continue;
+        const childParents = parents.get(childName) ?? [];
+        childParents.push(parentFlowId);
+        parents.set(childName, childParents);
+      }
+    }
+    return parents;
+  }
+
+  private extractEdgesFromFlows(
+    content: string,
+    functions: DecoratedFunction[],
+    flowCalls: Map<string, string[]>,
+    edges: PipelineEdge[]
+  ): void {
+    const functionsByName = new Map(functions.map((fn) => [fn.name, fn]));
+    const callableNames = new Set(functionsByName.keys());
+    const edgeIds = new Set<string>();
+    const addEdge = (source: string, target: string) => {
+      const id = `e-${source}-${target}`;
+      if (source !== target && !edgeIds.has(id)) {
+        edgeIds.add(id);
+        edges.push({ id, source, target });
+      }
+    };
+
+    for (const flow of functions.filter(({ decorator }) => decorator === "flow")) {
+      const flowBody = content.slice(flow.bodyStart, flow.bodyEnd);
+      const callRegex = /\b(\w+)(?:\.submit)?\s*\(([^)]*)\)/g;
+      const assignmentRegex = /\b(\w+)\s*=\s*(\w+)(?:\.submit)?\s*\(/g;
+      const assignments: Array<{ variable: string; functionName: string; position: number }> = [];
+      let assignment: RegExpExecArray | null;
+      while ((assignment = assignmentRegex.exec(flowBody)) !== null) {
+        if (callableNames.has(assignment[2])) {
+          assignments.push({
+            variable: assignment[1],
+            functionName: assignment[2],
+            position: assignment.index,
+          });
+        }
       }
 
-      for (const [target, sources] of calls) {
-        for (const source of sources) {
-          const id = `e-${source}-${target}`;
-          if (!edges.some((edge) => edge.id === id)) {
-            edges.push({ id, source, target });
+      let call: RegExpExecArray | null;
+      while ((call = callRegex.exec(flowBody)) !== null) {
+        const target = call[1];
+        const args = call[2];
+        if (!callableNames.has(target)) continue;
+
+        const sources = new Set<string>();
+        const directCallRegex = /\b(\w+)(?:\.submit)?\s*\(/g;
+        let directCall: RegExpExecArray | null;
+        while ((directCall = directCallRegex.exec(args)) !== null) {
+          if (callableNames.has(directCall[1])) sources.add(directCall[1]);
+        }
+        for (const { variable, functionName, position } of assignments) {
+          if (
+            position < call.index &&
+            new RegExp(`\\b${variable}\\b`).test(args)
+          ) {
+            sources.add(functionName);
           }
+        }
+        for (const source of sources) addEdge(source, target);
+      }
+
+      for (const childFlowId of flowCalls.get(flow.name) ?? []) {
+        if (functionsByName.get(childFlowId)?.decorator === "flow") {
+          addEdge(childFlowId, flow.name);
         }
       }
     }

@@ -17,7 +17,9 @@ describe('Prefect pipeline discovery', () => {
       files.filter(({ fsPath }) => !fsPath.includes('/.venv/') || !exclude.includes('.venv'))
     );
     (workspace.openTextDocument as jest.Mock).mockImplementation(async ({ fsPath }) => ({
-      getText: () => `from prefect import flow\n@flow\ndef ${fsPath === projectPath ? 'project_flow' : 'library_flow'}(): pass`,
+      getText: () => fsPath === projectPath
+        ? `from prefect import flow, task\n@task\ndef project_task(): pass\n@flow\ndef project_flow():\n    project_task()`
+        : `from prefect import flow\n@flow\ndef library_flow(): pass`,
     }));
 
     const provider = {
@@ -34,7 +36,90 @@ describe('Prefect pipeline discovery', () => {
     );
     expect(provider.updatePipeline).toHaveBeenCalledWith(
       expect.objectContaining({
-        nodes: [expect.objectContaining({ label: 'project_flow' })],
+        nodes: [
+          expect.objectContaining({
+            label: 'project_task',
+            data: expect.objectContaining({
+              prefectFlowIds: [`${projectPath}::project_flow`],
+            }),
+          }),
+          expect.objectContaining({
+            label: 'project_flow',
+            data: expect.objectContaining({
+              prefectTaskIds: [`${projectPath}::project_task`],
+              prefectTaskCount: 1,
+              prefectTasks: [
+                {
+                  id: `${projectPath}::project_task`,
+                  label: 'project_task',
+                  dependencies: [],
+                },
+              ],
+            }),
+          }),
+        ],
+      }),
+      [projectPath]
+    );
+  });
+
+  it('prefixes nested flow membership and dependency edges during discovery', async () => {
+    const projectPath = '/workspace/app/function_based_flow.py';
+    const source = `from prefect import flow, task
+
+@task
+def generate_a_number():
+    return 42
+
+@flow
+def is_number_even(number: int):
+    return number % 2 == 0
+
+@flow
+def even_or_odd():
+    number = generate_a_number()
+    if is_number_even(number):
+        print("The number is even")
+`;
+    (workspace.findFiles as jest.Mock).mockResolvedValue([{ fsPath: projectPath }]);
+    (workspace.openTextDocument as jest.Mock).mockResolvedValue({
+      getText: () => source,
+    });
+
+    const provider = {
+      setLoading: jest.fn(),
+      updatePipeline: jest.fn(),
+    } as unknown as PipelineWebviewProvider;
+
+    await discoverPipelines(provider, new DataProcessingPipeline());
+
+    expect(provider.updatePipeline).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nodes: expect.arrayContaining([
+          expect.objectContaining({
+            id: `${projectPath}::even_or_odd`,
+            data: expect.objectContaining({
+              prefectChildFlowIds: [`${projectPath}::is_number_even`],
+              prefectTaskIds: [`${projectPath}::generate_a_number`],
+            }),
+          }),
+          expect.objectContaining({
+            id: `${projectPath}::is_number_even`,
+            data: expect.objectContaining({
+              prefectFlowIds: [`${projectPath}::even_or_odd`],
+            }),
+          }),
+        ]),
+        edges: expect.arrayContaining([
+          expect.objectContaining({
+            source: `${projectPath}::generate_a_number`,
+            target: `${projectPath}::is_number_even`,
+          }),
+          expect.objectContaining({
+            source: `${projectPath}::is_number_even`,
+            target: `${projectPath}::even_or_odd`,
+          }),
+        ]),
       }),
       [projectPath]
     );

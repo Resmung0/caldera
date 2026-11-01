@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { PipelineNodeItem } from '../src/webview/components/PipelineNodeItem';
 import { NodeProps } from 'reactflow';
 // import '@testing-library/jest-dom'; // Disabled since not in package.json
@@ -98,5 +98,70 @@ describe('PipelineNodeItem - Task 9.4: Status Rendering Unit Tests', () => {
         expect(nodeElement.classList.contains('artifact')).toBe(true);
         expect(screen.queryByText('Materialized')).not.toBeNull();
         expect(screen.queryByText('image')).not.toBeNull();
+    });
+
+    test('keeps Flow nodes in the standard style and toggles their task group', () => {
+        const onToggleFlow = jest.fn();
+        const onParentMouseDown = jest.fn();
+        const onParentPointerDown = jest.fn();
+        const FlowNodeHarness = () => {
+            const [isFlowExpanded, setExpanded] = useState(false);
+            return (
+                <div onMouseDown={onParentMouseDown} onPointerDown={onParentPointerDown}>
+                    <PipelineNodeItem
+                        {...defaultProps}
+                        data={{
+                            ...defaultProps.data,
+                            prefectType: 'flow',
+                            prefectTaskCount: 3,
+                            isFlowExpanded,
+                            onToggleFlow: (flowId: string) => {
+                                onToggleFlow(flowId);
+                                setExpanded((expanded) => !expanded);
+                            },
+                        }}
+                    />
+                </div>
+            );
+        };
+
+        const { container } = render(<FlowNodeHarness />);
+
+        const flowNode = container.querySelector('[data-prefect-type="flow"]') as HTMLElement;
+        expect(flowNode.getAttribute('data-prefect-type')).toBe('flow');
+        expect(flowNode.classList.contains('pipeline-node-item')).toBe(true);
+        expect(flowNode.classList.contains('prefect-flow')).toBe(false);
+        expect(screen.getByText('Flow')).not.toBeNull();
+        expect(screen.getByText('3 tasks')).not.toBeNull();
+        const expandButton = screen.getByRole('button', { name: 'Expand Test Node tasks' });
+        expect(expandButton.classList.contains('nodrag')).toBe(true);
+        expect(expandButton.classList.contains('nopan')).toBe(true);
+        fireEvent.pointerDown(expandButton);
+        fireEvent.mouseDown(expandButton);
+        expect(onParentPointerDown).not.toHaveBeenCalled();
+        expect(onParentMouseDown).not.toHaveBeenCalled();
+        fireEvent.click(expandButton);
+        expect(onToggleFlow).toHaveBeenCalledWith('node-1');
+        expect(flowNode.getAttribute('data-expanded')).toBe('true');
+        expect(container.querySelector('.prefect-flow-content')).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Collapse Test Node tasks' }));
+        expect(onToggleFlow).toHaveBeenCalledTimes(2);
+        expect(screen.queryByText('Task A')).toBeNull();
+        expect(flowNode.getAttribute('data-expanded')).toBe('false');
+    });
+
+    test('labels Prefect task nodes distinctly', () => {
+        const props = {
+            ...defaultProps,
+            data: { ...defaultProps.data, prefectType: 'task' },
+        };
+
+        const { container } = render(<PipelineNodeItem {...props} />);
+
+        expect((container.firstChild as HTMLElement).classList.contains('pipeline-node-item')).toBe(true);
+        expect((container.firstChild as HTMLElement).classList.contains('prefect-task')).toBe(false);
+        expect(screen.getByText('Task')).not.toBeNull();
+        expect(container.querySelector('.prefect-flow-task')).toBeNull();
     });
 });

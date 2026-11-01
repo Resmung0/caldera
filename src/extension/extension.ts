@@ -135,9 +135,26 @@ export async function discoverPipelines(provider: PipelineWebviewProvider, pipel
         const edges: PipelineData['edges'] = [];
 
         for (const { file, data } of filesToDisplay) {
+            const nodeIds = new Map(data.nodes.map((node) => [node.id, `${file.fsPath}::${node.id}`]));
             nodes.push(...data.nodes.map((node) => ({
                 ...node,
-                id: `${file.fsPath}::${node.id}`,
+                id: nodeIds.get(node.id)!,
+                data: node.data && {
+                    ...node.data,
+                    prefectTaskIds: node.data.prefectTaskIds?.map((id: string) => nodeIds.get(id) ?? id),
+                    prefectFlowIds: node.data.prefectFlowIds?.map((id: string) => nodeIds.get(id) ?? id),
+                    prefectChildFlowIds: node.data.prefectChildFlowIds?.map(
+                        (id: string) => nodeIds.get(id) ?? id
+                    ),
+                    prefectTasks: node.data.prefectTasks?.map((task: {
+                        id: string;
+                        dependencies: string[];
+                    }) => ({
+                        ...task,
+                        id: nodeIds.get(task.id) ?? task.id,
+                        dependencies: task.dependencies.map((id: string) => nodeIds.get(id) ?? id),
+                    })),
+                },
             })));
             edges.push(...data.edges.map((edge) => ({
                 ...edge,
