@@ -24,7 +24,11 @@ export function toggleFlowNode<TNode extends GraphNode>(
   flowId: string
 ): TNode[] {
   return nodes.map((node) => {
-    if (node.id !== flowId || node.data?.prefectType !== 'flow') return node;
+    if (
+      node.id !== flowId ||
+      node.data?.prefectType !== 'flow' ||
+      getFlowTaskCount(node) === 0
+    ) return node;
 
     return {
       ...node,
@@ -37,24 +41,39 @@ export function getVisiblePrefectGraph<TNode extends GraphNode, TEdge extends Gr
   nodes: TNode[],
   edges: TEdge[]
 ): { nodes: TNode[]; edges: TEdge[] } {
-  const expandedFlowIds = new Set(
-    nodes
-      .filter((node) => node.data?.prefectType === 'flow' && node.data.isFlowExpanded)
-      .map(({ id }) => id)
-  );
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const isFlowExpandedInVisiblePath = (
+    flowId: string,
+    visitedFlowIds = new Set<string>()
+  ): boolean => {
+    if (visitedFlowIds.has(flowId)) return false;
+    const flowNode = nodesById.get(flowId);
+    if (
+      flowNode?.data?.prefectType !== 'flow' ||
+      !flowNode.data.isFlowExpanded ||
+      getFlowTaskCount(flowNode) === 0
+    ) return false;
+
+    const nextVisitedFlowIds = new Set(visitedFlowIds).add(flowId);
+    const parentFlowIds = flowNode.data.prefectFlowIds ?? [];
+    return parentFlowIds.length === 0 || parentFlowIds.some((parentFlowId) =>
+      isFlowExpandedInVisiblePath(parentFlowId, nextVisitedFlowIds)
+    );
+  };
   const visibleNodes = nodes.filter((node) => {
     if (node.data?.prefectType === 'flow') {
-      return (node.data.prefectFlowIds ?? []).length === 0 &&
-        !node.data.isFlowExpanded;
+      const parentFlowIds = node.data.prefectFlowIds ?? [];
+      const isVisibleInParent = parentFlowIds.length === 0 ||
+        parentFlowIds.some((parentFlowId) =>
+          isFlowExpandedInVisiblePath(parentFlowId)
+        );
+      return isVisibleInParent && !isFlowExpandedInVisiblePath(node.id);
     }
 
     if (node.data?.prefectType === 'task') {
       const flowIds = node.data.prefectFlowIds ?? [];
       if (flowIds.length === 0) return true;
-      return nodes.some((flow) =>
-        expandedFlowIds.has(flow.id) &&
-        (flow.data?.prefectTaskIds ?? []).includes(node.id)
-      );
+      return flowIds.some((flowId) => isFlowExpandedInVisiblePath(flowId));
     }
 
     return true;
@@ -69,6 +88,12 @@ export function getVisiblePrefectGraph<TNode extends GraphNode, TEdge extends Gr
   };
 }
 
+function getFlowTaskCount(node: GraphNode): number {
+  return node.data?.prefectTaskCount ??
+    node.data?.prefectTaskIds?.length ??
+    0;
+}
+
 export function getExpandedPrefectFlowAnnotations(
   nodes: GraphNode[]
 ): PipelineAnnotation[] {
@@ -76,17 +101,33 @@ export function getExpandedPrefectFlowAnnotations(
   return nodes.flatMap((node) => {
     if (node.data?.prefectType !== 'flow' || !node.data.isFlowExpanded) return [];
 
-    const taskIds = node.data.prefectTaskIds ?? [];
-    if (taskIds.length === 0) return [];
+    const groupedNodeIds = new Set<string>();
+    const addDescendants = (flowId: string, visitedFlowIds = new Set<string>()) => {
+      if (visitedFlowIds.has(flowId)) return;
+      const nextVisitedFlowIds = new Set(visitedFlowIds).add(flowId);
+      const flow = nodesById.get(flowId);
+      if (!flow) return;
+
+      for (const taskId of flow.data?.prefectTaskIds ?? []) {
+        groupedNodeIds.add(taskId);
+      }
+      for (const childFlowId of flow.data?.prefectChildFlowIds ?? []) {
+        groupedNodeIds.add(childFlowId);
+        addDescendants(childFlowId, nextVisitedFlowIds);
+      }
+    };
+    addDescendants(node.id);
+    const visibleGroupIds = Array.from(groupedNodeIds).filter((id) => nodesById.has(id));
+    if (visibleGroupIds.length === 0) return [];
 
     const now = new Date(0);
     return [{
       id: `prefect-flow:${node.id}`,
-      nodeIds: taskIds.filter((taskId) => nodesById.has(taskId)),
+      nodeIds: visibleGroupIds,
       patternType: PipelinePatternType.DATA_PROCESSING,
       patternSubtype: 'flow',
       color: '#f20d63',
-      label: `Flow: ${node.data.label ?? node.id}`,
+      label: node.data.label ?? node.id,
       createdAt: now,
       modifiedAt: now,
       source: 'prefect-flow',

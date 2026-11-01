@@ -17,7 +17,7 @@ describe('Prefect Flow annotation rendering', () => {
           patternType: PipelinePatternType.DATA_PROCESSING,
           patternSubtype: 'flow',
           color: '#f20d63',
-          label: 'Flow: Flow A',
+          label: 'Flow A',
           source: 'prefect-flow',
           flowId: 'flow-a',
           createdAt: new Date(0),
@@ -31,7 +31,7 @@ describe('Prefect Flow annotation rendering', () => {
 
     const boundary = container.querySelector('.annotation-boundary') as HTMLElement;
     expect(boundary.style.borderColor).toBe('rgb(242, 13, 99)');
-    expect(getByText('Flow: Flow A')).not.toBeNull();
+    expect(getByText('Flow A')).not.toBeNull();
     expect(container.querySelector('.annotation-icon-container svg')).not.toBeNull();
     fireEvent.click(getByRole('button', { name: 'Collapse Flow A' }));
     expect(onCollapseFlow).toHaveBeenCalledWith('flow-a');

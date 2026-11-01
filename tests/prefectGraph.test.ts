@@ -72,7 +72,7 @@ describe('Prefect graph expansion', () => {
       id: 'prefect-flow:flow-a',
       nodeIds: ['task-shared', 'task-a'],
       color: '#f20d63',
-      label: 'Flow: Flow A',
+      label: 'Flow A',
       source: 'prefect-flow',
       flowId: 'flow-a',
     });
@@ -95,6 +95,7 @@ describe('Prefect graph expansion', () => {
           prefectFlowIds: [],
           prefectChildFlowIds: ['child-flow'],
           prefectTaskIds: ['root-task', 'child-task'],
+          prefectTaskCount: 2,
           isFlowExpanded: false,
         },
       },
@@ -106,6 +107,7 @@ describe('Prefect graph expansion', () => {
           prefectFlowIds: ['root-flow'],
           prefectChildFlowIds: [],
           prefectTaskIds: ['child-task'],
+          prefectTaskCount: 1,
           isFlowExpanded: false,
         },
       },
@@ -116,8 +118,8 @@ describe('Prefect graph expansion', () => {
     const rootExpanded = toggleFlowNode(nestedNodes, 'root-flow');
     const visibleAfterRootExpansion = getVisiblePrefectGraph(rootExpanded, []);
     expect(visibleAfterRootExpansion.nodes.map(({ id }) => id)).toEqual([
+      'child-flow',
       'root-task',
-      'child-task',
     ]);
 
     const allExpanded = toggleFlowNode(rootExpanded, 'child-flow');
@@ -125,10 +127,49 @@ describe('Prefect graph expansion', () => {
       'root-task',
       'child-task',
     ]);
-    expect(getExpandedPrefectFlowAnnotations(allExpanded)[0].nodeIds).toEqual([
+    expect(getExpandedPrefectFlowAnnotations(allExpanded)[0].nodeIds).toEqual(expect.arrayContaining([
       'root-task',
+      'child-flow',
       'child-task',
+    ]));
+  });
+
+  it('keeps taskless child flows visible when their parent is expanded', () => {
+    const tasklessChild = [
+      {
+        id: 'parent',
+        data: {
+          prefectType: 'flow',
+          prefectFlowIds: [],
+          prefectChildFlowIds: ['child'],
+          prefectTaskIds: ['parent-task'],
+          prefectTaskCount: 1,
+          isFlowExpanded: false,
+        },
+      },
+      {
+        id: 'child',
+        data: {
+          prefectType: 'flow',
+          prefectFlowIds: ['parent'],
+          prefectChildFlowIds: [],
+          prefectTaskIds: [],
+          prefectTaskCount: 0,
+          isFlowExpanded: false,
+        },
+      },
+      {
+        id: 'parent-task',
+        data: { prefectType: 'task', prefectFlowIds: ['parent'] },
+      },
+    ];
+
+    const expandedParent = toggleFlowNode(tasklessChild, 'parent');
+    expect(getVisiblePrefectGraph(expandedParent, []).nodes.map(({ id }) => id)).toEqual([
+      'child',
+      'parent-task',
     ]);
+    expect(toggleFlowNode(expandedParent, 'child')[1].data.isFlowExpanded).toBe(false);
   });
 
   it('does not mutate unrelated nodes when toggling one flow', () => {
