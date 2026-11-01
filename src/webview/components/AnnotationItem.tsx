@@ -13,6 +13,8 @@ import {
   VectorSquare,
   ChartSpline,
   Globe,
+  Workflow,
+  Minimize2,
   Settings2,
   Trash2,
   HelpCircle,
@@ -31,6 +33,7 @@ interface AnnotationItemProps {
   animationEnabled?: boolean;
   onDeleteAnnotation?: (id: string) => void;
   onEditAnnotation?: (id: string, position: { x: number, y: number }) => void;
+  onCollapseFlow?: (flowId: string) => void;
 }
 
 const SUBTYPE_ICONS: Record<string, React.ElementType> = {
@@ -67,7 +70,8 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
   showLabels = true,
   animationEnabled = true,
   onDeleteAnnotation,
-  onEditAnnotation
+  onEditAnnotation,
+  onCollapseFlow,
 }) => {
   const [showHelp, setShowHelp] = useState(false);
 
@@ -77,7 +81,12 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
   };
 
   const zIndex = getAnnotationZIndex(index);
-  const Icon = useMemo(() => getPatternIcon(annotation.patternType, annotation.patternSubtype), [annotation.patternType, annotation.patternSubtype]);
+  const Icon = useMemo(
+    () => annotation.source === 'prefect-flow'
+      ? Workflow
+      : getPatternIcon(annotation.patternType, annotation.patternSubtype),
+    [annotation.patternType, annotation.patternSubtype, annotation.source]
+  );
 
   return (
     <div
@@ -106,21 +115,21 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
         zIndex: -1
       }} />
 
-      {/* Action Buttons in top-right corner */}
-      <div
-        className="annotation-actions"
-        style={{
-          position: 'absolute',
-          top: -12,
-          right: 8,
-          display: 'flex',
-          gap: '6px',
-          pointerEvents: 'auto',
-          zIndex: zIndex + 3,
-          opacity: 0,
-          transition: 'opacity 0.2s ease'
-        }}
-      >
+      {annotation.source !== 'prefect-flow' && (
+        <div
+          className="annotation-actions"
+          style={{
+            position: 'absolute',
+            top: -12,
+            right: 8,
+            display: 'flex',
+            gap: '6px',
+            pointerEvents: 'auto',
+            zIndex: zIndex + 3,
+            opacity: 0,
+            transition: 'opacity 0.2s ease'
+          }}
+        >
         {/* Help Button */}
         <div
           style={{ position: 'relative' }} // For positioning the tooltip
@@ -216,7 +225,53 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
         >
           <Trash2 size={12} />
         </button>
-      </div>
+        </div>
+      )}
+      {annotation.source === 'prefect-flow' && annotation.flowId && (
+        <div
+          className="annotation-actions"
+          style={{
+            position: 'absolute',
+            top: -12,
+            right: 8,
+            display: 'flex',
+            gap: '6px',
+            pointerEvents: 'auto',
+            zIndex: zIndex + 3,
+            opacity: 0,
+            transition: 'opacity 0.2s ease'
+          }}
+        >
+          <button
+            type="button"
+            className="nodrag nopan"
+            aria-label={`Collapse ${annotation.label?.replace(/^Flow:\s*/i, '') || 'Flow'}`}
+            title="Collapse Flow"
+            onPointerDownCapture={(event) => event.stopPropagation()}
+            onMouseDownCapture={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onCollapseFlow?.(annotation.flowId!);
+            }}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(30, 32, 49, 0.95)',
+              border: `1px solid ${annotation.color}`,
+              color: annotation.color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              padding: 0,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+            }}
+          >
+            <Minimize2 size={12} />
+          </button>
+        </div>
+      )}
 
       {/* Pattern Icon in top-left corner */}
       <div

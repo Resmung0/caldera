@@ -2,6 +2,8 @@
 export const workspace = {
     getWorkspaceFolder: jest.fn(),
     workspaceFolders: [],
+    findFiles: jest.fn(),
+    openTextDocument: jest.fn(),
 };
 
 export const window = {

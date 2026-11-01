@@ -46,6 +46,8 @@ export interface PipelineAnnotation {
   patternSubtype: string;
   color: string;
   label?: string;
+  source?: 'prefect-flow';
+  flowId?: string;
   createdAt: Date;
   modifiedAt: Date;
 }
