@@ -164,4 +164,16 @@ describe('PipelineNodeItem - Task 9.4: Status Rendering Unit Tests', () => {
         expect(screen.getByText('Task')).not.toBeNull();
         expect(container.querySelector('.prefect-flow-task')).toBeNull();
     });
+
+    test('uses the flow annotation icon for Prefect Flow nodes', () => {
+        const props = {
+            ...defaultProps,
+            data: { ...defaultProps.data, prefectType: 'flow' },
+        };
+
+        const { container } = render(<PipelineNodeItem {...props} />);
+
+        expect(container.querySelector('.node-icon .lucide-workflow')).not.toBeNull();
+        expect(container.querySelector('.node-icon .lucide-terminal')).toBeNull();
+    });
 });

@@ -13,6 +13,7 @@ import {
   List,
   Folder,
   Sparkles,
+  Workflow,
 } from 'lucide-react';
 import { SiGithub, SiGitlab, SiDvc } from 'react-icons/si';
 import { FiDatabase } from 'react-icons/fi';
@@ -336,7 +337,9 @@ export const PipelineNodeItem = ({ data, id }: NodeProps) => {
 
       <div className="node-header">
         <div className="node-icon">
-          <Terminal size={16} color="#a0aec0" />
+          {prefectType === 'flow'
+            ? <Workflow size={16} color="#f20d63" />
+            : <Terminal size={16} color="#a0aec0" />}
         </div>
         <div className="node-title" title={data.label}>{data.label}</div>
         {prefectType && <span className="prefect-node-type">{prefectType === 'flow' ? 'Flow' : 'Task'}</span>}
